@@ -209,7 +209,7 @@ func VerifyUser(username string, password string) (*User, bool, error) {
 	user, err := GetUser(username)
 	if err != nil {
 		compareUnknownUserPassword(password)
-		return nil, false, nil
+		return nil, false, err
 	}
 	if user == nil || user.IsDeleted || user.IsForbidden || user.PasswordHash == "" {
 		compareUnknownUserPassword(password)

@@ -89,9 +89,9 @@ func InitAuthConfig() {
 // Signin
 // @Title Signin
 // @Tag Account API
-// @Description sign in
-// @Param code  query string true "code of account"
-// @Param state query string true "state of account"
+// @Description sign in with Casdoor OAuth code or password
+// @Param code  query string false "code of account"
+// @Param state query string false "state of account"
 // @Success 200 {casdoorsdk} casdoorsdk.Claims The Response object
 // @router /signin [post]
 func (c *ApiController) Signin() {
@@ -385,10 +385,17 @@ func (c *ApiController) GetAccount() {
 	}
 
 	if object.IsSigninEnabled() {
-		_, ok := c.CheckSignedIn()
-		if !ok {
-			c.anonymousSignin()
-			return
+		if !c.isPublicDomain() && disablePreviewMode {
+			_, ok := c.RequireSignedIn()
+			if !ok {
+				return
+			}
+		} else {
+			_, ok := c.CheckSignedIn()
+			if !ok {
+				c.anonymousSignin()
+				return
+			}
 		}
 	} else if !c.isPublicDomain() && disablePreviewMode {
 		_, ok := c.RequireSignedIn()
