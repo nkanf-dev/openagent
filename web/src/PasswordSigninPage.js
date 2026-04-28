@@ -13,18 +13,18 @@
 // limitations under the License.
 
 import React from "react";
-import {Button, Card, Form, Input, Result, Spin, message} from "antd";
+import {Button, Form, Input, Result, Spin, message} from "antd";
 import {LockOutlined, UserOutlined} from "@ant-design/icons";
 import i18next from "i18next";
 import * as AccountBackend from "./backend/AccountBackend";
 import * as Setting from "./Setting";
 
-class BasicSigninPage extends React.Component {
+class PasswordSigninPage extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
       loading: true,
-      showBasicSignin: false,
+      showSignin: false,
       errorMessage: "",
     };
   }
@@ -39,21 +39,21 @@ class BasicSigninPage extends React.Component {
 
         this.setState({
           loading: false,
-          showBasicSignin: res.status === "ok" && !res.data?.casdoorAvailable && res.data?.basicSigninEnabled,
+          showSignin: res.status === "ok" && !res.data?.casdoorAvailable && res.data?.signinAvailable,
           errorMessage: res.status === "ok" ? "" : res.msg,
         });
       })
       .catch((error) => {
         this.setState({
           loading: false,
-          showBasicSignin: false,
+          showSignin: false,
           errorMessage: error.message,
         });
       });
   }
 
   onFinish(values) {
-    AccountBackend.signinBasic(values.username, values.password)
+    AccountBackend.signinWithPassword(values.username, values.password)
       .then((res) => {
         if (res.status === "ok") {
           const from = sessionStorage.getItem("from") || "/";
@@ -75,37 +75,48 @@ class BasicSigninPage extends React.Component {
       );
     }
 
-    if (!this.state.showBasicSignin) {
+    if (!this.state.showSignin) {
       return (
         <Result
           status="warning"
           title={i18next.t("login:Login Error")}
-          subTitle={this.state.errorMessage || i18next.t("account:Basic login is disabled")}
+          subTitle={this.state.errorMessage || i18next.t("account:Sign in is unavailable")}
         />
       );
     }
 
     return (
-      <div style={{display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#f7f7f7"}}>
-        <Card title={i18next.t("account:Basic Sign In")} style={{width: 380}}>
-          <p style={{marginTop: 0, color: "#666"}}>
-            {i18next.t("account:Casdoor is unavailable. Sign in with a local account.")}
-          </p>
-          <Form onFinish={(values) => this.onFinish(values)}>
+      <div style={{display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#ffffff"}}>
+        <div style={{width: "420px"}}>
+          <div style={{textAlign: "center", marginBottom: "58px"}}>
+            <img src={this.props.logo} alt="Casibase" style={{width: "360px", maxWidth: "100%"}} />
+          </div>
+          <Form onFinish={(values) => this.onFinish(values)} requiredMark={false}>
             <Form.Item name="username" rules={[{required: true, message: i18next.t("account:Please input your username")}]}>
-              <Input prefix={<UserOutlined />} placeholder={i18next.t("general:Username")} autoFocus />
+              <Input
+                prefix={<UserOutlined style={{fontSize: "22px", color: "#222222"}} />}
+                placeholder={i18next.t("general:Username")}
+                autoFocus
+                size="large"
+                style={{height: "56px", borderRadius: "17px", fontSize: "18px"}}
+              />
             </Form.Item>
             <Form.Item name="password" rules={[{required: true, message: i18next.t("account:Please input your password")}]}>
-              <Input.Password prefix={<LockOutlined />} placeholder={i18next.t("general:Password")} />
+              <Input.Password
+                prefix={<LockOutlined style={{fontSize: "20px", color: "#222222"}} />}
+                placeholder={i18next.t("general:Password")}
+                size="large"
+                style={{height: "56px", borderRadius: "17px", fontSize: "18px"}}
+              />
             </Form.Item>
-            <Button type="primary" htmlType="submit" block>
+            <Button type="primary" htmlType="submit" block style={{height: "56px", borderRadius: "16px", marginTop: "16px", background: "#242424", borderColor: "#242424", fontSize: "18px"}}>
               {i18next.t("account:Sign In")}
             </Button>
           </Form>
-        </Card>
+        </div>
       </div>
     );
   }
 }
 
-export default BasicSigninPage;
+export default PasswordSigninPage;

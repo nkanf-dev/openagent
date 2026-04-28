@@ -72,11 +72,11 @@ func ShareStore(srcOwner, srcName, targetUserName, sharedByUserName string) (*St
 		return nil, fmt.Errorf("source store not found")
 	}
 
-	basicUser, err := GetBasicUserByRuntimeName(targetUserName)
+	accountUser, err := GetUserByRuntimeName(targetUserName)
 	if err != nil {
 		return nil, err
 	}
-	if basicUser == nil {
+	if accountUser == nil {
 		targetUser, err := casdoorsdk.GetUser(targetUserName)
 		if err != nil {
 			return nil, err
@@ -92,7 +92,7 @@ func ShareStore(srcOwner, srcName, targetUserName, sharedByUserName string) (*St
 		if org != "" && targetUser.Owner != org {
 			return nil, fmt.Errorf("target user is not in this organization")
 		}
-	} else if basicUser.IsDeleted || basicUser.IsForbidden {
+	} else if accountUser.IsDeleted || accountUser.IsForbidden {
 		return nil, fmt.Errorf("target user is not available")
 	}
 

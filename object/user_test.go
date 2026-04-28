@@ -21,39 +21,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func TestGetBasicRuntimeName(t *testing.T) {
-	name := GetBasicRuntimeName("Admin")
-	if !strings.HasPrefix(name, "b-") || len(name) != 10 {
-		t.Fatalf("expected runtime name with b- prefix, got %s", name)
-	}
-	if name == "admin" {
-		t.Fatal("runtime name should not reuse the login username")
-	}
-	if name != GetBasicRuntimeName(" Admin ") {
-		t.Fatal("runtime name should be stable for normalized usernames")
-	}
-	if name == GetBasicRuntimeName("admin") {
-		t.Fatal("runtime name should keep case-distinct login names isolated")
-	}
-}
-
-func TestNormalizeBasicUserName(t *testing.T) {
-	if _, err := normalizeBasicUserName(""); err == nil {
+func TestNormalizeUserName(t *testing.T) {
+	if _, err := normalizeUserName(""); err == nil {
 		t.Fatal("empty username should be rejected")
 	}
-	if _, err := normalizeBasicUserName("a/b"); err == nil {
+	if _, err := normalizeUserName("a/b"); err == nil {
 		t.Fatal("slash should be rejected")
 	}
-	if _, err := normalizeBasicUserName(strings.Repeat("a", 101)); err == nil {
+	if _, err := normalizeUserName(strings.Repeat("a", 101)); err == nil {
 		t.Fatal("long username should be rejected")
 	}
-	if name, err := normalizeBasicUserName(" admin "); err != nil || name != "admin" {
+	if name, err := normalizeUserName(" admin "); err != nil || name != "admin" {
 		t.Fatalf("expected trimmed username, got %q, err=%v", name, err)
 	}
 }
 
-func TestGetBasicPasswordHash(t *testing.T) {
-	hash, err := getBasicPasswordHash("secret")
+func TestGetPasswordHash(t *testing.T) {
+	hash, err := getPasswordHash("secret")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +47,7 @@ func TestGetBasicPasswordHash(t *testing.T) {
 	if err = bcrypt.CompareHashAndPassword([]byte(hash), []byte("wrong")); err == nil {
 		t.Fatal("wrong password should not match")
 	}
-	if _, err = getBasicPasswordHash(strings.Repeat("a", maxBasicSigninPasswordLengthBytes+1)); err == nil {
+	if _, err = getPasswordHash(strings.Repeat("a", maxPasswordLengthBytes+1)); err == nil {
 		t.Fatal("password longer than bcrypt input limit should be rejected")
 	}
 }

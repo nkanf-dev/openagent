@@ -93,7 +93,7 @@ import ProviderEditPage from "./ProviderEditPage";
 import VectorListPage from "./VectorListPage";
 import VectorEditPage from "./VectorEditPage";
 import SigninPage from "./SigninPage";
-import BasicAccountPage from "./BasicAccountPage";
+import AccountPage from "./AccountPage";
 import ChatEditPage from "./ChatEditPage";
 import ChatListPage from "./ChatListPage";
 import MessageListPage from "./MessageListPage";
@@ -247,18 +247,16 @@ function ManagementPage(props) {
   }
 
   function renderAvatar() {
-    const name = account.displayName || account.name;
-
     if (account.avatar === "") {
       return (
-        <Avatar style={{backgroundColor: Setting.getAvatarColor(name), verticalAlign: "middle", marginLeft: 8}} size="large">
-          {Setting.getShortName(name)}
+        <Avatar style={{backgroundColor: Setting.getAvatarColor(account.name), verticalAlign: "middle", marginLeft: 8}} size="large">
+          {Setting.getShortName(account.name)}
         </Avatar>
       );
     } else {
       return (
         <Avatar src={account.avatar} style={{verticalAlign: "middle", marginLeft: 8}} size="large">
-          {Setting.getShortName(name)}
+          {Setting.getShortName(account.name)}
         </Avatar>
       );
     }
@@ -385,7 +383,7 @@ function ManagementPage(props) {
     return filteredItems.filter(item => !Array.isArray(item.children) || item.children.length > 0);
   }
 
-  function filterBasicMenuItems(menuItems) {
+  function filterUserMenuItems(menuItems) {
     if (!Setting.isBasicUser(account)) {
       return menuItems;
     }
@@ -596,7 +594,7 @@ function ManagementPage(props) {
           </a>, "/swagger", <ApiOutlined />),
       ]));
 
-      return Setting.isBasicUser(account) ? filterMenuItems(filterBasicMenuItems(res), navItems) : filterMenuItems(res, navItems);
+      return Setting.isBasicUser(account) ? filterMenuItems(filterUserMenuItems(res), navItems) : filterMenuItems(res, navItems);
     }
 
     const sortedForms = forms.slice().sort((a, b) => a.position.localeCompare(b.position));
@@ -605,7 +603,7 @@ function ManagementPage(props) {
       res.push(Setting.getItem(<Link to={path}>{form.displayName}</Link>, path, <FormOutlined />));
     });
 
-    return Setting.isBasicUser(account) ? filterBasicMenuItems(res) : res;
+    return Setting.isBasicUser(account) ? filterUserMenuItems(res) : res;
   }
 
   function renderHomeIfSignedIn(component) {
@@ -623,7 +621,7 @@ function ManagementPage(props) {
         sessionStorage.setItem("from", window.location.pathname);
         window.location.replace(signinUrl);
       } else {
-        return <Redirect to="/signin" />;
+        return null;
       }
     } else if (account === undefined) {
       return null;
@@ -643,8 +641,8 @@ function ManagementPage(props) {
       <Switch>
         <Route exact path="/access/:owner/:name" render={(props) => renderSigninIfNotSignedIn(<AccessPage account={account} {...props} />)} />
         <Route exact path="/callback" component={AuthCallback} />
-        <Route exact path="/account" render={(props) => renderSigninIfNotSignedIn(Setting.isBasicUser(account) ? <BasicAccountPage account={account} {...props} /> : <Redirect to="/" />)} />
-        <Route exact path="/signin" render={(props) => Setting.isAnonymousUser(account) ? <SigninPage {...props} /> : renderHomeIfSignedIn(<SigninPage {...props} />)} />
+        <Route exact path="/account" render={(props) => renderSigninIfNotSignedIn(Setting.isBasicUser(account) ? <AccountPage account={account} {...props} /> : <Redirect to="/" />)} />
+        <Route exact path="/signin" render={(props) => Setting.isAnonymousUser(account) ? <SigninPage logo={siderLogo} {...props} /> : renderHomeIfSignedIn(<SigninPage logo={siderLogo} {...props} />)} />
         <Route exact path="/" render={(props) => renderSigninIfNotSignedIn(<HomePage account={account} {...props} />)} />
         <Route exact path="/home" render={(props) => renderSigninIfNotSignedIn(<HomePage account={account} {...props} />)} />
         <Route exact path="/stores" render={(props) => renderSigninIfNotSignedIn(<StoreListPage account={account} {...props} />)} />
@@ -816,6 +814,9 @@ function ManagementPage(props) {
   const siderWidth = 256;
   const siderCollapsedWidth = 80;
   const showSider = !Setting.isMobile() && !isHiddenHeaderAndFooter();
+  if (window.location.pathname === "/signin") {
+    return renderRouter();
+  }
   const contentMarginLeft = showSider ? (siderCollapsed ? siderCollapsedWidth : siderWidth) : 0;
 
   return (

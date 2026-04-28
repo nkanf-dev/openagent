@@ -99,7 +99,8 @@ func (c *ApiController) UploadTaskDocument() {
 	}
 
 	// Upload file to storage
-	if !c.requireCasdoorAvailable() {
+	if !isCasdoorAvailable() {
+		c.ResponseError(c.T("auth:This feature is unavailable in this sign-in mode"))
 		return
 	}
 

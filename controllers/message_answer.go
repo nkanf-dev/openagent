@@ -361,7 +361,7 @@ func (c *ApiController) GetMessageAnswer() {
 
 	// Add transaction for message with price
 	if message.Price > 0 && !isCasdoorAvailable() {
-		c.ResponseErrorStream(message, c.T("auth:Casdoor is unavailable"))
+		c.ResponseErrorStream(message, c.T("auth:This feature is unavailable in this sign-in mode"))
 		return
 	}
 	err = object.AddTransactionForMessage(message)

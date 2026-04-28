@@ -457,13 +457,14 @@ func (c *ApiController) AddSharedStore() {
 		return
 	}
 
-	basicUser, err := object.GetBasicUserByRuntimeName(form.TargetUser)
+	accountUser, err := object.GetUserByRuntimeName(form.TargetUser)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
-	if basicUser == nil {
-		if !c.requireCasdoorAvailable() {
+	if accountUser == nil {
+		if !isCasdoorAvailable() {
+			c.ResponseError(c.T("auth:This feature is unavailable in this sign-in mode"))
 			return
 		}
 	}

@@ -34,14 +34,13 @@ func isCasdoorAvailable() bool {
 	return casdoorAvailable.Load()
 }
 
-type basicSigninForm struct {
+type signinForm struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 type accountForm struct {
 	DisplayName     string `json:"displayName"`
-	Email           string `json:"email"`
 	Avatar          string `json:"avatar"`
 	CurrentPassword string `json:"currentPassword"`
 	NewPassword     string `json:"newPassword"`
@@ -55,26 +54,18 @@ type accountForm struct {
 // @router /get-signin-options [get]
 func (c *ApiController) GetSigninOptions() {
 	c.ResponseOk(map[string]interface{}{
-		"casdoorAvailable":   isCasdoorAvailable(),
-		"basicSigninEnabled": object.IsBasicSigninEnabled(),
+		"casdoorAvailable": isCasdoorAvailable(),
+		"signinAvailable":  object.IsSigninEnabled(),
 	})
 }
 
-func (c *ApiController) requireCasdoorAvailable() bool {
-	if !isCasdoorAvailable() {
-		c.ResponseError(c.T("auth:Casdoor is unavailable"))
-		return false
-	}
-	return true
-}
-
-func (c *ApiController) responseBasicOrganizationUsers() bool {
+func (c *ApiController) responseSigninOrganizationUsers() bool {
 	sessionUser := c.GetSessionUser()
-	if sessionUser == nil || sessionUser.Owner != object.BasicUserOwner {
+	if sessionUser == nil || sessionUser.Owner != object.UserOwner {
 		return false
 	}
 
-	users, err := object.GetBasicUsers()
+	users, err := object.GetUserList()
 	if err != nil {
 		c.ResponseError(err.Error())
 		return true
@@ -115,7 +106,7 @@ func (c *ApiController) responseBasicOrganizationUsers() bool {
 // @router /update-account [post]
 func (c *ApiController) UpdateAccount() {
 	sessionUser := c.GetSessionUser()
-	if sessionUser == nil || sessionUser.Owner != object.BasicUserOwner {
+	if sessionUser == nil || sessionUser.Owner != object.UserOwner {
 		c.ResponseError(c.T("auth:Unauthorized operation"))
 		return
 	}
@@ -126,52 +117,51 @@ func (c *ApiController) UpdateAccount() {
 		return
 	}
 	if form.CurrentPassword != "" || form.NewPassword != "" {
-		if sanitizedBody, err := json.Marshal(accountForm{DisplayName: form.DisplayName, Email: form.Email, Avatar: form.Avatar, CurrentPassword: "***", NewPassword: "***"}); err == nil {
+		if sanitizedBody, err := json.Marshal(accountForm{DisplayName: form.DisplayName, Avatar: form.Avatar, CurrentPassword: "***", NewPassword: "***"}); err == nil {
 			c.Ctx.Input.RequestBody = sanitizedBody
 		}
 	}
 
-	basicUser, err := object.GetBasicUserByRuntimeName(sessionUser.Name)
+	accountUser, err := object.GetUserByRuntimeName(sessionUser.Name)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
-	if basicUser == nil {
+	if accountUser == nil {
 		c.ResponseError(c.T("auth:Unauthorized operation"))
 		return
 	}
 
-	if form.NewPassword != "" && !object.CheckBasicUserPassword(basicUser, form.CurrentPassword) {
+	if form.NewPassword != "" && !object.CheckUserPassword(accountUser, form.CurrentPassword) {
 		c.ResponseError(c.T("auth:Invalid username or password"))
 		return
 	}
 
-	basicUser.DisplayName = form.DisplayName
-	basicUser.Email = form.Email
-	basicUser.Avatar = form.Avatar
-	if err = object.UpdateBasicUserProfile(basicUser); err != nil {
+	accountUser.DisplayName = form.DisplayName
+	accountUser.Avatar = form.Avatar
+	if err = object.UpdateUserProfile(accountUser); err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
 	if form.NewPassword != "" {
-		if err = object.UpdateBasicUserPassword(basicUser, form.NewPassword); err != nil {
+		if err = object.UpdateUserPassword(accountUser, form.NewPassword); err != nil {
 			c.ResponseError(err.Error())
 			return
 		}
 	}
 
-	user := basicUser.ToCasdoorUser()
+	user := accountUser.ToCasdoorUser()
 	c.SetSessionUser(&user)
 	c.ResponseOk(user)
 }
 
-func (c *ApiController) signinBasic() {
-	if !object.IsBasicSigninEnabled() {
-		c.ResponseError(c.T("auth:Basic login is disabled"))
+func (c *ApiController) signinWithPassword() {
+	if !object.IsSigninEnabled() {
+		c.ResponseError(c.T("auth:Sign in is unavailable"))
 		return
 	}
 
-	form := basicSigninForm{}
+	form := signinForm{}
 	if len(c.Ctx.Input.RequestBody) > 0 {
 		if err := json.Unmarshal(c.Ctx.Input.RequestBody, &form); err != nil {
 			c.ResponseError(err.Error())
@@ -184,11 +174,11 @@ func (c *ApiController) signinBasic() {
 	if form.Password == "" {
 		form.Password = c.Input().Get("password")
 	}
-	if sanitizedBody, err := json.Marshal(basicSigninForm{Username: form.Username, Password: "***"}); err == nil {
+	if sanitizedBody, err := json.Marshal(signinForm{Username: form.Username, Password: "***"}); err == nil {
 		c.Ctx.Input.RequestBody = sanitizedBody
 	}
 
-	basicUser, ok, err := object.VerifyBasicUser(form.Username, form.Password, c.getClientIp(), c.GetAcceptLanguage())
+	accountUser, ok, err := object.VerifyUser(form.Username, form.Password)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -198,10 +188,10 @@ func (c *ApiController) signinBasic() {
 		return
 	}
 
-	user := basicUser.ToCasdoorUser()
+	user := accountUser.ToCasdoorUser()
 	claims := &casdoorsdk.Claims{
 		User:         user,
-		SigninMethod: "Basic Sign In",
+		SigninMethod: "Sign In",
 	}
 
 	if err = c.addInitialChatAndMessage(&claims.User); err != nil {

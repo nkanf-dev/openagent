@@ -20,12 +20,11 @@
     "worker upload failed: %s": "工作节点上传失败：%s"
   },
   "auth": {
-    "Basic login is disabled": "基础登录已禁用",
-    "Casdoor is unavailable": "Casdoor 不可用",
     "Invalid username or password": "用户名或密码错误",
     "Please sign in first": "请先登录",
+    "Sign in is unavailable": "登录不可用",
+    "This feature is unavailable in this sign-in mode": "当前登录方式不支持此功能",
     "Unauthorized operation": "未授权的操作",
-    "You have entered the wrong password too many times, please wait for %d minutes and try again": "您已多次输入错误密码，请等待 %d 分钟后重试",
     "this operation requires admin privilege": "此操作需要管理员权限"
   },
   "blockchain": {

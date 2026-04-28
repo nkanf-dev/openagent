@@ -40,7 +40,8 @@ func getStorageProviders() ([]*casdoorsdk.Provider, error) {
 func (c *ApiController) GetStorageProviders() {
 	// owner := c.Input().Get("owner")
 
-	if !c.requireCasdoorAvailable() {
+	if !isCasdoorAvailable() {
+		c.ResponseOk([]*casdoorsdk.Provider{})
 		return
 	}
 

@@ -56,7 +56,7 @@ export function signin(code, state) {
   }).then(res => res.json());
 }
 
-export function signinBasic(username, password) {
+export function signinWithPassword(username, password) {
   return fetch(`${Setting.ServerUrl}/api/signin`, {
     method: "POST",
     credentials: "include",

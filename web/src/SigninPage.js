@@ -13,11 +13,11 @@
 // limitations under the License.
 
 import React from "react";
-import BasicSigninPage from "./BasicSigninPage";
+import PasswordSigninPage from "./PasswordSigninPage";
 
 class SigninPage extends React.Component {
   render() {
-    return <BasicSigninPage />;
+    return <PasswordSigninPage logo={this.props.logo} />;
   }
 }
 

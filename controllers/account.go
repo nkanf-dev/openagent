@@ -98,7 +98,7 @@ func (c *ApiController) Signin() {
 	code := c.Input().Get("code")
 	state := c.Input().Get("state")
 	if code == "" && state == "" {
-		c.signinBasic()
+		c.signinWithPassword()
 		return
 	}
 
@@ -384,7 +384,13 @@ func (c *ApiController) GetAccount() {
 		fmt.Println(err)
 	}
 
-	if !c.isPublicDomain() && disablePreviewMode {
+	if object.IsSigninEnabled() {
+		_, ok := c.CheckSignedIn()
+		if !ok {
+			c.anonymousSignin()
+			return
+		}
+	} else if !c.isPublicDomain() && disablePreviewMode {
 		_, ok := c.RequireSignedIn()
 		if !ok {
 			return
@@ -400,7 +406,7 @@ func (c *ApiController) GetAccount() {
 	claims := c.GetSessionClaims()
 
 	// Fetch fresh user data from Casdoor in real-time for non-anonymous users
-	if claims.User.Type != "anonymous-user" && claims.User.Owner != object.BasicUserOwner {
+	if claims.User.Type != "anonymous-user" && claims.User.Owner != object.UserOwner {
 		user, err := casdoorsdk.GetUser(claims.User.Name)
 		if err != nil {
 			c.ResponseError(err.Error())

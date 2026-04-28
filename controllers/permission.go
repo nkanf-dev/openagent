@@ -28,7 +28,8 @@ import (
 // @Success 200 {array} casdoorsdk.Permission The Response object
 // @router /get-permissions [get]
 func (c *ApiController) GetPermissions() {
-	if !c.requireCasdoorAvailable() {
+	if !isCasdoorAvailable() {
+		c.ResponseOk([]*casdoorsdk.Permission{})
 		return
 	}
 
@@ -49,7 +50,8 @@ func (c *ApiController) GetPermissions() {
 // @Success 200 {object} casdoorsdk.Permission The Response object
 // @router /get-permission [get]
 func (c *ApiController) GetPermission() {
-	if !c.requireCasdoorAvailable() {
+	if !isCasdoorAvailable() {
+		c.ResponseOk(nil)
 		return
 	}
 
@@ -77,7 +79,8 @@ func (c *ApiController) GetPermission() {
 // @Success 200 {object} controllers.Response The Response object
 // @router /update-permission [post]
 func (c *ApiController) UpdatePermission() {
-	if !c.requireCasdoorAvailable() {
+	if !isCasdoorAvailable() {
+		c.ResponseError(c.T("auth:This feature is unavailable in this sign-in mode"))
 		return
 	}
 
@@ -104,7 +107,8 @@ func (c *ApiController) UpdatePermission() {
 // @Success 200 {object} controllers.Response The Response object
 // @router /add-permission [post]
 func (c *ApiController) AddPermission() {
-	if !c.requireCasdoorAvailable() {
+	if !isCasdoorAvailable() {
+		c.ResponseError(c.T("auth:This feature is unavailable in this sign-in mode"))
 		return
 	}
 
@@ -132,7 +136,8 @@ func (c *ApiController) AddPermission() {
 // @Success 200 {object} controllers.Response The Response object
 // @router /delete-permission [post]
 func (c *ApiController) DeletePermission() {
-	if !c.requireCasdoorAvailable() {
+	if !isCasdoorAvailable() {
+		c.ResponseError(c.T("auth:This feature is unavailable in this sign-in mode"))
 		return
 	}
 

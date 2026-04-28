@@ -60,7 +60,8 @@ func (c *ApiController) UploadFile() {
 
 	filePath := fmt.Sprintf("openagent/avatars/%s/%s", userName, fileName)
 
-	if !c.requireCasdoorAvailable() {
+	if !isCasdoorAvailable() {
+		c.ResponseError(c.T("auth:This feature is unavailable in this sign-in mode"))
 		return
 	}
 

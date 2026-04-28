@@ -437,26 +437,24 @@ class StoreEditPage extends React.Component {
                 </Row>
               </>
             ) : null}
-            {Setting.isBasicUser(this.props.account) ? null : (
-              <Row style={{marginTop: "20px"}} >
-                <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-                  {Setting.getLabel(i18next.t("store:Image provider"), i18next.t("store:Image provider - Tooltip"))} :
-                </Col>
-                <Col span={22} >
-                  <Select virtual={false} style={{width: "100%"}} value={this.state.store.imageProvider} onChange={(value => {this.updateStoreField("imageProvider", value);})}
-                  >
-                    <Option key="none" value="">
-                      {i18next.t("general:empty")}
-                    </Option>
-                    {
-                      this.state.casdoorStorageProviders.map((provider, index) =>
-                        this.renderProviderOption(provider, index)
-                      )
-                    }
-                  </Select>
-                </Col>
-              </Row>
-            )}
+            <Row hidden={Setting.isBasicUser(this.props.account)} style={{marginTop: "20px"}} >
+              <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+                {Setting.getLabel(i18next.t("store:Image provider"), i18next.t("store:Image provider - Tooltip"))} :
+              </Col>
+              <Col span={22} >
+                <Select virtual={false} style={{width: "100%"}} value={this.state.store.imageProvider} onChange={(value => {this.updateStoreField("imageProvider", value);})}
+                >
+                  <Option key="none" value="">
+                    {i18next.t("general:empty")}
+                  </Option>
+                  {
+                    this.state.casdoorStorageProviders.map((provider, index) =>
+                      this.renderProviderOption(provider, index)
+                    )
+                  }
+                </Select>
+              </Col>
+            </Row>
             <Row style={{marginTop: "20px"}} >
               <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
                 {Setting.getLabel(i18next.t("store:Split provider"), i18next.t("store:Split provider - Tooltip"))} :
@@ -897,21 +895,19 @@ class StoreEditPage extends React.Component {
             }} />
           </Col>
         </Row>
-        {Setting.isBasicUser(this.props.account) ? null : (
-          <Row style={{marginTop: "20px"}} >
-            <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-              {Setting.getLabel(i18next.t("store:File tree"), i18next.t("store:File tree - Tooltip"))} :
-            </Col>
-            <Col span={22} >
-              <FileTree account={this.props.account} store={this.state.store} onUpdateStore={(store) => {
-                this.setState({
-                  store: store,
-                });
-                this.submitStoreEdit(undefined, store);
-              }} onRefresh={() => this.getStore()} />
-            </Col>
-          </Row>
-        )}
+        <Row hidden={Setting.isBasicUser(this.props.account)} style={{marginTop: "20px"}} >
+          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+            {Setting.getLabel(i18next.t("store:File tree"), i18next.t("store:File tree - Tooltip"))} :
+          </Col>
+          <Col span={22} >
+            <FileTree account={this.props.account} store={this.state.store} onUpdateStore={(store) => {
+              this.setState({
+                store: store,
+              });
+              this.submitStoreEdit(undefined, store);
+            }} onRefresh={() => this.getStore()} />
+          </Col>
+        </Row>
       </Card>
     );
   }

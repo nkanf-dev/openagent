@@ -207,7 +207,8 @@ func (c *ApiController) UpdateMessage() {
 	}
 
 	if message.NeedNotify {
-		if !c.requireCasdoorAvailable() {
+		if !isCasdoorAvailable() {
+			c.ResponseError(c.T("auth:This feature is unavailable in this sign-in mode"))
 			return
 		}
 

@@ -15,7 +15,6 @@
 package controllers
 
 import (
-	"github.com/the-open-agent/openagent/conf"
 	"github.com/the-open-agent/openagent/object"
 	"github.com/the-open-agent/openagent/util"
 )
@@ -38,7 +37,12 @@ func (c *ApiController) GetUsages() {
 		return
 	}
 
-	usageMetadata, err := c.getUsageMetadata()
+	var usageMetadata *object.UsageMetadata
+	if isCasdoorAvailable() {
+		usageMetadata, err = object.GetUsageMetadata(c.GetAcceptLanguage())
+	} else {
+		usageMetadata = &object.UsageMetadata{}
+	}
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -66,24 +70,18 @@ func (c *ApiController) GetRangeUsages() {
 		return
 	}
 
-	usageMetadata, err := c.getUsageMetadata()
+	var usageMetadata *object.UsageMetadata
+	if isCasdoorAvailable() {
+		usageMetadata, err = object.GetUsageMetadata(c.GetAcceptLanguage())
+	} else {
+		usageMetadata = &object.UsageMetadata{}
+	}
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
 
 	c.ResponseOk(usages, usageMetadata)
-}
-
-func (c *ApiController) getUsageMetadata() (*object.UsageMetadata, error) {
-	if !isCasdoorAvailable() {
-		return &object.UsageMetadata{
-			Organization: conf.GetConfigString("casdoorOrganization"),
-			Application:  conf.GetConfigString("casdoorApplication"),
-		}, nil
-	}
-
-	return object.GetUsageMetadata(c.GetAcceptLanguage())
 }
 
 // GetUsers

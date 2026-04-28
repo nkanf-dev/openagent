@@ -18,13 +18,12 @@ import i18next from "i18next";
 import * as AccountBackend from "./backend/AccountBackend";
 import * as Setting from "./Setting";
 
-class BasicAccountPage extends React.Component {
+class AccountPage extends React.Component {
   constructor(props) {
     super(props);
     this.formRef = React.createRef();
     this.state = {
       avatar: props.account?.avatar ?? "",
-      displayName: props.account?.displayName ?? "",
       passwordModalVisible: false,
       currentPassword: "",
       newPassword: "",
@@ -33,7 +32,7 @@ class BasicAccountPage extends React.Component {
   }
 
   onFinish(values) {
-    AccountBackend.updateAccount({...values, currentPassword: this.state.currentPassword, newPassword: this.state.newPassword})
+    AccountBackend.updateAccount(values)
       .then((res) => {
         if (res.status === "ok") {
           message.success(i18next.t("general:Successfully saved"));
@@ -60,26 +59,35 @@ class BasicAccountPage extends React.Component {
       return;
     }
 
-    this.setState({passwordModalVisible: false});
+    const values = this.formRef.current.getFieldsValue();
+    AccountBackend.updateAccount({...values, currentPassword: this.state.currentPassword, newPassword: this.state.newPassword})
+      .then((res) => {
+        if (res.status === "ok") {
+          message.success(i18next.t("general:Successfully saved"));
+          this.closePasswordModal();
+        } else {
+          message.error(res.msg);
+        }
+      })
+      .catch((error) => message.error(error.message));
   }
 
   renderAvatar() {
     const account = this.props.account;
-    const name = this.state.displayName || account.displayName || account.name;
     const avatarUrl = this.state.avatar || "";
     const hasAvatarUrl = avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://") || avatarUrl.startsWith("data:image/");
 
     if (!hasAvatarUrl) {
       return (
-        <Avatar style={{backgroundColor: Setting.getAvatarColor(name)}} size={64}>
-          {name}
+        <Avatar style={{backgroundColor: Setting.getAvatarColor(account.name)}} size={64}>
+          {Setting.getShortName(account.name)}
         </Avatar>
       );
     }
 
     return (
       <Avatar src={avatarUrl} size={64}>
-        {name}
+        {Setting.getShortName(account.name)}
       </Avatar>
     );
   }
@@ -112,24 +120,23 @@ class BasicAccountPage extends React.Component {
           initialValues={{
             username: account.name,
             displayName: account.displayName,
-            email: account.email,
             avatar: account.avatar,
           }}
           onFinish={(values) => this.onFinish(values)}
-          onValuesChange={(_, values) => this.setState({avatar: values.avatar ?? "", displayName: values.displayName ?? ""})}
+          onValuesChange={(_, values) => this.setState({avatar: values.avatar ?? ""})}
         >
           {this.renderFormItem(
             i18next.t("general:Name"),
             i18next.t("general:Name - Tooltip"),
             <Form.Item name="username" style={{margin: 0}}>
-              <Input disabled />
+              <Input disabled placeholder={i18next.t("account:Account ID")} />
             </Form.Item>
           )}
           {this.renderFormItem(
             i18next.t("general:Display name"),
             i18next.t("general:Display name - Tooltip"),
             <Form.Item name="displayName" style={{margin: 0}}>
-              <Input />
+              <Input placeholder={i18next.t("account:Name shown in OpenAgent")} />
             </Form.Item>
           )}
           {this.renderFormItem(
@@ -141,17 +148,10 @@ class BasicAccountPage extends React.Component {
               </Col>
               <Col flex="auto">
                 <Form.Item name="avatar" style={{margin: 0}}>
-                  <Input placeholder={i18next.t("general:Icon URL (optional)")} />
+                  <Input placeholder={i18next.t("account:Avatar image URL, optional")} />
                 </Form.Item>
               </Col>
             </Row>
-          )}
-          {this.renderFormItem(
-            i18next.t("general:Email"),
-            i18next.t("general:Email - Tooltip"),
-            <Form.Item name="email" style={{margin: 0}}>
-              <Input />
-            </Form.Item>
           )}
           {this.renderFormItem(
             i18next.t("general:Password"),
@@ -175,7 +175,7 @@ class BasicAccountPage extends React.Component {
             <Row style={{width: "100%", marginBottom: "20px"}}>
               <Input.Password
                 addonBefore={i18next.t("account:Old Password")}
-                placeholder={i18next.t("account:input password")}
+                placeholder={i18next.t("account:Enter current password")}
                 value={this.state.currentPassword}
                 onChange={e => this.setState({currentPassword: e.target.value})}
               />
@@ -183,7 +183,7 @@ class BasicAccountPage extends React.Component {
             <Row style={{width: "100%", marginBottom: "20px"}}>
               <Input.Password
                 addonBefore={i18next.t("account:New password")}
-                placeholder={i18next.t("account:input password")}
+                placeholder={i18next.t("account:Enter new password")}
                 value={this.state.newPassword}
                 onChange={e => this.setState({newPassword: e.target.value})}
               />
@@ -191,7 +191,7 @@ class BasicAccountPage extends React.Component {
             <Row style={{width: "100%", marginBottom: "20px"}}>
               <Input.Password
                 addonBefore={i18next.t("account:Re-enter New")}
-                placeholder={i18next.t("account:input password")}
+                placeholder={i18next.t("account:Confirm new password")}
                 value={this.state.confirmPassword}
                 onChange={e => this.setState({confirmPassword: e.target.value})}
               />
@@ -203,4 +203,4 @@ class BasicAccountPage extends React.Component {
   }
 }
 
-export default BasicAccountPage;
+export default AccountPage;
