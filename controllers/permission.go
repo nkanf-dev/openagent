@@ -28,6 +28,10 @@ import (
 // @Success 200 {array} casdoorsdk.Permission The Response object
 // @router /get-permissions [get]
 func (c *ApiController) GetPermissions() {
+	if !c.requireCasdoorAvailable() {
+		return
+	}
+
 	permissions, err := casdoorsdk.GetPermissions()
 	if err != nil {
 		c.ResponseError(err.Error())
@@ -45,6 +49,10 @@ func (c *ApiController) GetPermissions() {
 // @Success 200 {object} casdoorsdk.Permission The Response object
 // @router /get-permission [get]
 func (c *ApiController) GetPermission() {
+	if !c.requireCasdoorAvailable() {
+		return
+	}
+
 	id := c.Input().Get("id")
 	_, name, err := util.GetOwnerAndNameFromIdWithError(id)
 	if err != nil {
@@ -69,6 +77,10 @@ func (c *ApiController) GetPermission() {
 // @Success 200 {object} controllers.Response The Response object
 // @router /update-permission [post]
 func (c *ApiController) UpdatePermission() {
+	if !c.requireCasdoorAvailable() {
+		return
+	}
+
 	var permission casdoorsdk.Permission
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &permission)
 	if err != nil {
@@ -92,6 +104,10 @@ func (c *ApiController) UpdatePermission() {
 // @Success 200 {object} controllers.Response The Response object
 // @router /add-permission [post]
 func (c *ApiController) AddPermission() {
+	if !c.requireCasdoorAvailable() {
+		return
+	}
+
 	var permission casdoorsdk.Permission
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &permission)
 	if err != nil {
@@ -116,6 +132,10 @@ func (c *ApiController) AddPermission() {
 // @Success 200 {object} controllers.Response The Response object
 // @router /delete-permission [post]
 func (c *ApiController) DeletePermission() {
+	if !c.requireCasdoorAvailable() {
+		return
+	}
+
 	var permission casdoorsdk.Permission
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &permission)
 	if err != nil {

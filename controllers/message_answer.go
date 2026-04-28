@@ -360,6 +360,10 @@ func (c *ApiController) GetMessageAnswer() {
 	message.Price = model.AddPrices(message.Price, 0)
 
 	// Add transaction for message with price
+	if message.Price > 0 && !isCasdoorAvailable() {
+		c.ResponseErrorStream(message, c.T("auth:Casdoor is unavailable"))
+		return
+	}
 	err = object.AddTransactionForMessage(message)
 	if err != nil {
 		c.ResponseErrorStream(message, err.Error())

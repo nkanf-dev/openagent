@@ -457,6 +457,17 @@ func (c *ApiController) AddSharedStore() {
 		return
 	}
 
+	basicUser, err := object.GetBasicUserByRuntimeName(form.TargetUser)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if basicUser == nil {
+		if !c.requireCasdoorAvailable() {
+			return
+		}
+	}
+
 	newStore, err := object.ShareStore(src.Owner, src.Name, form.TargetUser, c.GetSessionUsername())
 	if err != nil {
 		c.ResponseError(err.Error())

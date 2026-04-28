@@ -20,8 +20,12 @@
     "worker upload failed: %s": "worker upload failed: %s"
   },
   "auth": {
+    "Basic login is disabled": "Basic login is disabled",
+    "Casdoor is unavailable": "Casdoor is unavailable",
+    "Invalid username or password": "Invalid username or password",
     "Please sign in first": "Please sign in first",
     "Unauthorized operation": "Unauthorized operation",
+    "You have entered the wrong password too many times, please wait for %d minutes and try again": "You have entered the wrong password too many times, please wait for %d minutes and try again",
     "this operation requires admin privilege": "this operation requires admin privilege"
   },
   "blockchain": {

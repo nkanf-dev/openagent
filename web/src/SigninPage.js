@@ -13,15 +13,11 @@
 // limitations under the License.
 
 import React from "react";
-import * as Setting from "./Setting";
+import BasicSigninPage from "./BasicSigninPage";
 
 class SigninPage extends React.Component {
-  componentDidMount() {
-    window.location.replace(Setting.getSigninUrl());
-  }
-
   render() {
-    return "";
+    return <BasicSigninPage />;
   }
 }
 

@@ -207,6 +207,10 @@ func (c *ApiController) UpdateMessage() {
 	}
 
 	if message.NeedNotify {
+		if !c.requireCasdoorAvailable() {
+			return
+		}
+
 		err = message.SendEmail(c.GetAcceptLanguage())
 		if err != nil {
 			c.ResponseError(err.Error())

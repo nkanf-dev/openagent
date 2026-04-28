@@ -13,18 +13,20 @@
 // limitations under the License.
 
 import React, {useState} from "react";
-import {Button, Col, Image, Input, Row, Space, Upload} from "antd";
+import {Avatar, Button, Col, Image, Input, Row, Space, Upload} from "antd";
 import * as Setting from "./Setting";
 import i18next from "i18next";
 import * as TreeFileBackend from "./backend/TreeFileBackend";
 
 const StoreAvatarUploader = (props) => {
-  const {store, onUpdate, onUploadComplete, imageUrl} = props;
+  const {store, onUpdate, onUploadComplete, imageUrl, disableUpload} = props;
   const [loading, setLoading] = useState(false);
   if (!store) {
     return null;
   }
   const currentImageUrl = imageUrl || store.avatar;
+  const name = store.displayName || store.name;
+  const hasImageUrl = currentImageUrl?.startsWith("http://") || currentImageUrl?.startsWith("https://") || currentImageUrl?.startsWith("data:image/");
 
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -76,7 +78,11 @@ const StoreAvatarUploader = (props) => {
     <div>
       <Row>
         <Col span={24}>
-          <Input value={currentImageUrl || ""} onChange={e => onUpdate(e.target.value)} />
+          <Input
+            value={currentImageUrl || ""}
+            placeholder={disableUpload ? i18next.t("general:Icon URL (optional)") : undefined}
+            onChange={e => onUpdate(e.target.value)}
+          />
         </Col>
       </Row>
 
@@ -84,20 +90,26 @@ const StoreAvatarUploader = (props) => {
         <Col span={24}>
           <Space direction="vertical" align="center">
             {
-              currentImageUrl && (
+              hasImageUrl ? (
                 <Image src={currentImageUrl} alt="avatar" width={150} height={150} style={{objectFit: "cover"}}
                   preview={{
                     mask: i18next.t("general:Preview"),
                   }}
                 />
+              ) : (
+                <Avatar style={{backgroundColor: Setting.getAvatarColor(name)}} size={80}>
+                  {name}
+                </Avatar>
               )
             }
 
-            <Upload name="file" accept="image/*" showUploadList={false} customRequest={handleUpload}>
-              <Button type="primary" loading={loading}>
-                {i18next.t("general:Upload")}
-              </Button>
-            </Upload>
+            {disableUpload ? null : (
+              <Upload name="file" accept="image/*" showUploadList={false} customRequest={handleUpload}>
+                <Button type="primary" loading={loading}>
+                  {i18next.t("general:Upload")}
+                </Button>
+              </Upload>
+            )}
           </Space>
         </Col>
       </Row>

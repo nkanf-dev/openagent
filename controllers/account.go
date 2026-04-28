@@ -57,21 +57,25 @@ func tryInitAuthConfig() error {
 	}
 
 	casdoorsdk.InitConfig(casdoorEndpoint, clientId, clientSecret, cert.Certificate, casdoorOrganization, casdoorApplication)
+	setCasdoorAvailable(true)
 	return nil
 }
 
 func InitAuthConfig() {
 	casdoorEndpoint := conf.GetConfigString("casdoorEndpoint")
 	if casdoorEndpoint == "" {
+		setCasdoorAvailable(false)
 		return
 	}
 
 	if err := tryInitAuthConfig(); err != nil {
+		setCasdoorAvailable(false)
 		beego.Warning("InitAuthConfig: casdoor unreachable, will retry in background:", err)
 		go func() {
 			for {
 				time.Sleep(10 * time.Second)
 				if err := tryInitAuthConfig(); err != nil {
+					setCasdoorAvailable(false)
 					beego.Warning("InitAuthConfig: retry failed:", err)
 				} else {
 					beego.Info("InitAuthConfig: casdoor connected successfully")
@@ -93,6 +97,10 @@ func InitAuthConfig() {
 func (c *ApiController) Signin() {
 	code := c.Input().Get("code")
 	state := c.Input().Get("state")
+	if code == "" && state == "" {
+		c.signinBasic()
+		return
+	}
 
 	token, err := casdoorsdk.GetOAuthToken(code, state)
 	if err != nil {
@@ -392,7 +400,7 @@ func (c *ApiController) GetAccount() {
 	claims := c.GetSessionClaims()
 
 	// Fetch fresh user data from Casdoor in real-time for non-anonymous users
-	if claims.User.Type != "anonymous-user" {
+	if claims.User.Type != "anonymous-user" && claims.User.Owner != object.BasicUserOwner {
 		user, err := casdoorsdk.GetUser(claims.User.Name)
 		if err != nil {
 			c.ResponseError(err.Error())

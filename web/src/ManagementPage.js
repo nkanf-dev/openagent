@@ -93,6 +93,7 @@ import ProviderEditPage from "./ProviderEditPage";
 import VectorListPage from "./VectorListPage";
 import VectorEditPage from "./VectorEditPage";
 import SigninPage from "./SigninPage";
+import BasicAccountPage from "./BasicAccountPage";
 import ChatEditPage from "./ChatEditPage";
 import ChatListPage from "./ChatListPage";
 import MessageListPage from "./MessageListPage";
@@ -246,16 +247,18 @@ function ManagementPage(props) {
   }
 
   function renderAvatar() {
+    const name = account.displayName || account.name;
+
     if (account.avatar === "") {
       return (
-        <Avatar style={{backgroundColor: Setting.getAvatarColor(account.name), verticalAlign: "middle", marginLeft: 8}} size="large">
-          {Setting.getShortName(account.name)}
+        <Avatar style={{backgroundColor: Setting.getAvatarColor(name), verticalAlign: "middle", marginLeft: 8}} size="large">
+          {Setting.getShortName(name)}
         </Avatar>
       );
     } else {
       return (
         <Avatar src={account.avatar} style={{verticalAlign: "middle", marginLeft: 8}} size="large">
-          {Setting.getShortName(account.name)}
+          {Setting.getShortName(name)}
         </Avatar>
       );
     }
@@ -286,12 +289,21 @@ function ManagementPage(props) {
 
     const onClick = (e) => {
       if (e.key === "/account") {
-        Setting.openLink(Setting.getMyProfileUrl(account));
+        if (Setting.isBasicUser(account)) {
+          history.push("/account");
+        } else {
+          Setting.openLink(Setting.getMyProfileUrl(account));
+        }
       } else if (e.key === "/logout") {
         signout();
       } else if (e.key === "/login") {
-        history.push(window.location.pathname);
-        Setting.redirectToLogin();
+        if (Setting.getSigninUrl() !== "") {
+          history.push(window.location.pathname);
+          Setting.redirectToLogin();
+        } else {
+          sessionStorage.setItem("from", window.location.pathname);
+          history.push("/signin");
+        }
       }
     };
 
@@ -316,11 +328,13 @@ function ManagementPage(props) {
     } else if (account === null) {
       return (
         <React.Fragment>
-          <div key="/signup" style={{float: "right", marginRight: "20px"}}>
-            <a href={Setting.getSignupUrl()}>{i18next.t("account:Sign Up")}</a>
-          </div>
-          <div key="/signin" style={{float: "right"}}>
-            <a href={Setting.getSigninUrl()}>{i18next.t("account:Sign In")}</a>
+          {Setting.getSignupUrl() !== "" ? (
+            <div key="/signup" style={{float: "right", marginRight: "20px"}}>
+              <a href={Setting.getSignupUrl()}>{i18next.t("account:Sign Up")}</a>
+            </div>
+          ) : null}
+          <div key="/signin" style={{float: "right", marginRight: "20px"}}>
+            <a href={Setting.getSigninUrl() || "/signin"}>{i18next.t("account:Sign In")}</a>
           </div>
           <div className="select-box" style={{float: "right", margin: "0px", padding: "0px"}}>
             <ThemeSelect themeAlgorithm={themeAlgorithm} onChange={setLogoAndThemeAlgorithm} />
@@ -369,6 +383,13 @@ function ManagementPage(props) {
     });
 
     return filteredItems.filter(item => !Array.isArray(item.children) || item.children.length > 0);
+  }
+
+  function filterBasicMenuItems(menuItems) {
+    if (!Setting.isBasicUser(account)) {
+      return menuItems;
+    }
+    return menuItems.filter(item => !["/identity", "#", "##", "###"].includes(item.key));
   }
 
   function getMenuItems() {
@@ -575,7 +596,7 @@ function ManagementPage(props) {
           </a>, "/swagger", <ApiOutlined />),
       ]));
 
-      return filterMenuItems(res, navItems);
+      return Setting.isBasicUser(account) ? filterMenuItems(filterBasicMenuItems(res), navItems) : filterMenuItems(res, navItems);
     }
 
     const sortedForms = forms.slice().sort((a, b) => a.position.localeCompare(b.position));
@@ -584,7 +605,7 @@ function ManagementPage(props) {
       res.push(Setting.getItem(<Link to={path}>{form.displayName}</Link>, path, <FormOutlined />));
     });
 
-    return res;
+    return Setting.isBasicUser(account) ? filterBasicMenuItems(res) : res;
   }
 
   function renderHomeIfSignedIn(component) {
@@ -602,7 +623,7 @@ function ManagementPage(props) {
         sessionStorage.setItem("from", window.location.pathname);
         window.location.replace(signinUrl);
       } else {
-        return null;
+        return <Redirect to="/signin" />;
       }
     } else if (account === undefined) {
       return null;
@@ -622,7 +643,8 @@ function ManagementPage(props) {
       <Switch>
         <Route exact path="/access/:owner/:name" render={(props) => renderSigninIfNotSignedIn(<AccessPage account={account} {...props} />)} />
         <Route exact path="/callback" component={AuthCallback} />
-        <Route exact path="/signin" render={(props) => renderHomeIfSignedIn(<SigninPage {...props} />)} />
+        <Route exact path="/account" render={(props) => renderSigninIfNotSignedIn(Setting.isBasicUser(account) ? <BasicAccountPage account={account} {...props} /> : <Redirect to="/" />)} />
+        <Route exact path="/signin" render={(props) => Setting.isAnonymousUser(account) ? <SigninPage {...props} /> : renderHomeIfSignedIn(<SigninPage {...props} />)} />
         <Route exact path="/" render={(props) => renderSigninIfNotSignedIn(<HomePage account={account} {...props} />)} />
         <Route exact path="/home" render={(props) => renderSigninIfNotSignedIn(<HomePage account={account} {...props} />)} />
         <Route exact path="/stores" render={(props) => renderSigninIfNotSignedIn(<StoreListPage account={account} {...props} />)} />

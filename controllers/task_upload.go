@@ -99,6 +99,10 @@ func (c *ApiController) UploadTaskDocument() {
 	}
 
 	// Upload file to storage
+	if !c.requireCasdoorAvailable() {
+		return
+	}
+
 	filePath := fmt.Sprintf("openagent/task-documents/%s/%s", userName, fileName)
 	fileUrl, err := object.UploadFileToStorageSafe(userName, "file", "UploadTaskDocument", filePath, fileBytes)
 	if err != nil {

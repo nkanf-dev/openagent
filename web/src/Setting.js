@@ -81,10 +81,18 @@ export function getSigninUrl() {
 }
 
 export function getUserProfileUrl(userName, account) {
+  if (isBasicUser(account)) {
+    return "#";
+  }
+
   return getUrlWithLanguage(CasdoorSdk.getUserProfileUrl(userName, account));
 }
 
 export function getMyProfileUrl(account) {
+  if (isBasicUser(account)) {
+    return "#";
+  }
+
   const returnUrl = window.location.href;
   return getUrlWithLanguage(CasdoorSdk.getMyProfileUrl(account, returnUrl));
 }
@@ -187,6 +195,13 @@ export function canViewAllUsers(account) {
     return false;
   }
   return account.name === "admin" || isChatAdminUser(account);
+}
+
+export function isBasicUser(account) {
+  if (account === undefined || account === null) {
+    return false;
+  }
+  return account.owner === "basic";
 }
 
 export function isLocalAdminUser(account) {

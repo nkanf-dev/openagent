@@ -24,6 +24,28 @@ export function getAccount() {
   }).then(res => res.json());
 }
 
+export function getSigninOptions() {
+  return fetch(`${Setting.ServerUrl}/api/get-signin-options`, {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      "Accept-Language": Setting.getAcceptLanguage(),
+    },
+  }).then(res => res.json());
+}
+
+export function updateAccount(account) {
+  return fetch(`${Setting.ServerUrl}/api/update-account`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Accept-Language": Setting.getAcceptLanguage(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(account),
+  }).then(res => res.json());
+}
+
 export function signin(code, state) {
   return fetch(`${Setting.ServerUrl}/api/signin?code=${code}&state=${state}`, {
     method: "POST",
@@ -31,6 +53,18 @@ export function signin(code, state) {
     headers: {
       "Accept-Language": Setting.getAcceptLanguage(),
     },
+  }).then(res => res.json());
+}
+
+export function signinBasic(username, password) {
+  return fetch(`${Setting.ServerUrl}/api/signin`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Accept-Language": Setting.getAcceptLanguage(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({username, password}),
   }).then(res => res.json());
 }
 

@@ -60,6 +60,10 @@ func (c *ApiController) UploadFile() {
 
 	filePath := fmt.Sprintf("openagent/avatars/%s/%s", userName, fileName)
 
+	if !c.requireCasdoorAvailable() {
+		return
+	}
+
 	fileUrl, err := object.UploadFileToStorageSafe(userName, "file", "UploadStoreAvatar", filePath, fileBytes)
 	if err != nil {
 		c.ResponseError(err.Error())

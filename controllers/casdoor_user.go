@@ -56,8 +56,14 @@ func (c *ApiController) GetOrganizationUsers() {
 	if _, ok := c.RequireSignedIn(); !ok {
 		return
 	}
+	if c.responseBasicOrganizationUsers() {
+		return
+	}
 	if !c.IsAdmin() {
 		c.ResponseError(c.T("auth:this operation requires admin privilege"))
+		return
+	}
+	if !c.requireCasdoorAvailable() {
 		return
 	}
 
