@@ -91,12 +91,11 @@ class PasswordSigninPage extends React.Component {
           <div style={{textAlign: "center", marginBottom: "58px"}}>
             <img src={this.props.logo} alt="Casibase" style={{width: "360px", maxWidth: "100%"}} />
           </div>
-          <Form onFinish={(values) => this.onFinish(values)} requiredMark={false}>
+          <Form initialValues={{username: "admin"}} onFinish={(values) => this.onFinish(values)} requiredMark={false}>
             <Form.Item name="username" rules={[{required: true, message: i18next.t("account:Please input your username")}]}>
               <Input
                 prefix={<UserOutlined style={{fontSize: "22px", color: "#222222"}} />}
                 placeholder={i18next.t("general:Username")}
-                autoFocus
                 size="large"
                 style={{height: "56px", borderRadius: "17px", fontSize: "18px"}}
               />
@@ -105,6 +104,7 @@ class PasswordSigninPage extends React.Component {
               <Input.Password
                 prefix={<LockOutlined style={{fontSize: "20px", color: "#222222"}} />}
                 placeholder={i18next.t("general:Password")}
+                autoFocus
                 size="large"
                 style={{height: "56px", borderRadius: "17px", fontSize: "18px"}}
               />
