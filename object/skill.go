@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/the-open-agent/openagent/util"
@@ -333,6 +334,186 @@ func DeleteSkill(s *Skill) (bool, error) {
 	return affected != 0, nil
 }
 
+func resolveEnabledSkills(owner string, skillNames []string) ([]*Skill, error) {
+	if len(skillNames) == 0 {
+		return nil, nil
+	}
+
+	var names []string
+	for _, name := range skillNames {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if name == "All" {
+			return GetSkills(owner)
+		}
+		names = append(names, name)
+	}
+
+	var skills []*Skill
+	seen := map[string]bool{}
+	for _, name := range names {
+		s, err := GetSkillByOwnerAndName(owner, name)
+		if err != nil {
+			return nil, err
+		}
+		if s == nil {
+			continue
+		}
+
+		id := s.GetId()
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		skills = append(skills, s)
+	}
+
+	return skills, nil
+}
+
+func skillNameMatches(s *Skill, skillName string) bool {
+	if s == nil {
+		return false
+	}
+
+	skillName = strings.TrimSpace(skillName)
+	if skillName == "" {
+		return false
+	}
+
+	if skillName == s.Name || skillName == s.GetId() {
+		return true
+	}
+
+	owner, name, err := util.GetOwnerAndNameFromIdWithError(skillName)
+	return err == nil && owner == s.Owner && name == s.Name
+}
+
+func GetSkillsCatalog(owner string, skillNames []string) (string, error) {
+	if len(skillNames) == 0 {
+		return "", nil
+	}
+
+	skills, err := resolveEnabledSkills(owner, skillNames)
+	if err != nil {
+		return "", err
+	}
+
+	var items []string
+	for _, s := range skills {
+		if s == nil || s.State != "Active" {
+			continue
+		}
+
+		parts := []string{fmt.Sprintf("- %s", s.Name)}
+		if strings.TrimSpace(s.Description) != "" {
+			parts = append(parts, fmt.Sprintf("description: %s", strings.TrimSpace(s.Description)))
+		}
+		if strings.TrimSpace(s.Type) != "" {
+			parts = append(parts, fmt.Sprintf("type: %s", strings.TrimSpace(s.Type)))
+		}
+
+		refNames := make([]string, 0, len(s.References))
+		for _, ref := range s.References {
+			if strings.TrimSpace(ref.Name) != "" {
+				refNames = append(refNames, ref.Name)
+			}
+		}
+		sort.Strings(refNames)
+		if len(refNames) > 0 {
+			parts = append(parts, fmt.Sprintf("references: %s", strings.Join(refNames, ", ")))
+		}
+
+		items = append(items, strings.Join(parts, " | "))
+	}
+
+	if len(items) == 0 {
+		return "", nil
+	}
+
+	return "## Skills Usage Rules\n" +
+		"- If the user explicitly mentions a skill by name, you MUST call load_skill for that skill before answering.\n" +
+		"- If the user's request is clearly about a listed skill's domain, you MUST load that skill before giving procedural, policy, workflow, or step-by-step guidance.\n" +
+		"- Do not answer from general memory when a relevant listed skill exists but has not been loaded.\n" +
+		"- If the user asks what skills are available, answer from the catalog below instead of giving a generic summary of your broad abilities.\n\n" +
+		"## Skills Catalog\n" +
+		"You have access to the following skills. Do not assume all details are already loaded. If a skill looks relevant, call the load_skill tool to load its full instructions before relying on it.\n\n" +
+		strings.Join(items, "\n"), nil
+}
+
+func LoadSkillPromptContent(owner string, skillName string, referenceName string) (string, error) {
+	s, err := GetSkillByOwnerAndName(owner, skillName)
+	if err != nil {
+		return "", err
+	}
+	if s == nil {
+		return "", fmt.Errorf("skill not found: %s", skillName)
+	}
+	if s.State != "Active" {
+		return "", fmt.Errorf("skill is not active: %s", skillName)
+	}
+
+	buf := strings.TrimSpace(s.Content)
+	if referenceName == "" {
+		if len(s.References) > 0 {
+			refNames := make([]string, 0, len(s.References))
+			for _, ref := range s.References {
+				if strings.TrimSpace(ref.Name) != "" {
+					refNames = append(refNames, ref.Name)
+				}
+			}
+			sort.Strings(refNames)
+			if len(refNames) > 0 {
+				buf += "\n\n## Available References\n"
+				for _, name := range refNames {
+					buf += "- " + name + "\n"
+				}
+			}
+		}
+		return strings.TrimSpace(buf), nil
+	}
+
+	for _, ref := range s.References {
+		if ref.Name == referenceName {
+			if strings.TrimSpace(ref.Content) == "" {
+				return "", fmt.Errorf("reference is empty: %s", referenceName)
+			}
+			if buf != "" {
+				buf += "\n\n"
+			}
+			buf += "## Reference: " + ref.Name + "\n\n" + strings.TrimSpace(ref.Content)
+			return strings.TrimSpace(buf), nil
+		}
+	}
+
+	return "", fmt.Errorf("reference not found: %s", referenceName)
+}
+
+type skillLoader struct{}
+
+func (skillLoader) Load(owner string, allowedSkillNames []string, skillName string, referenceName string) (string, error) {
+	if len(allowedSkillNames) > 0 {
+		skills, err := resolveEnabledSkills(owner, allowedSkillNames)
+		if err != nil {
+			return "", err
+		}
+
+		allowed := false
+		for _, s := range skills {
+			if skillNameMatches(s, skillName) {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return "", fmt.Errorf("skill is not enabled for this store: %s", skillName)
+		}
+	}
+	return LoadSkillPromptContent(owner, skillName, referenceName)
+}
+
 // GetSkillsContent loads all named skills for a store and concatenates their
 // content (body of SKILL.md, or custom content) into a single string that
 // is appended to the agent's system prompt.
@@ -361,15 +542,7 @@ func GetSkillsContent(owner string, skillNames []string) (string, error) {
 		if s == nil || s.State != "Active" || strings.TrimSpace(s.Content) == "" {
 			continue
 		}
-		// Build effective skill content: the content body, plus any references
-		buf := strings.TrimSpace(s.Content)
-		for _, ref := range s.References {
-			if strings.TrimSpace(ref.Content) == "" {
-				continue
-			}
-			buf += "\n\n## Reference: " + ref.Name + "\n\n" + strings.TrimSpace(ref.Content)
-		}
-		parts = append(parts, buf)
+		parts = append(parts, strings.TrimSpace(s.Content))
 	}
 
 	return strings.Join(parts, "\n\n"), nil
