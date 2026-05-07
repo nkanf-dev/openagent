@@ -16,7 +16,8 @@ package cli
 
 // Build metadata (override via -ldflags at release time).
 var (
-	Version   = "dev"
-	Commit    = "unknown"
-	BuildDate = "unknown"
+	Version             = "dev"
+	Commit              = "unknown"
+	BuildDate           = "unknown"
+	FrontendCdnRepoBase = "__OPENAGENT_FRONTEND_CDN_REPO_BASE__"
 )

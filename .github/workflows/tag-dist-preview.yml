@@ -1,0 +1,108 @@
+name: Tag Dist Preview
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25.8"
+  NODE_VERSION: "22"
+  DIST_REPO: "nkanf-dev/openagent-dist"
+
+jobs:
+  tag-dist-preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('v0.0.0-preview-{0}', github.run_id) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+          cache-dependency-path: ./web/yarn.lock
+
+      - name: Build frontend
+        run: yarn install && CI=false yarn build
+        working-directory: ./web
+
+      - name: Publish frontend build to dist repo
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${DIST_REPO}.git" "$tmpdir/dist"
+          cd "$tmpdir/dist"
+          git checkout -B master
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R "$GITHUB_WORKSPACE/web/build/." .
+          touch .nojekyll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "dist: ${VERSION}" || true
+          git tag -f "${VERSION}"
+          git push origin HEAD:master --force
+          git push origin "refs/tags/${VERSION}" --force
+
+      - name: Remove local web build
+        run: rm -rf ./web/build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: ./go.mod
+
+      - name: Build backend without bundled web
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          go build -ldflags "\
+            -X github.com/the-open-agent/openagent/internal/cli.Version=${VERSION} \
+            -X github.com/the-open-agent/openagent/internal/cli.FrontendCdnRepoBase=https://cdn.jsdelivr.net/gh/${DIST_REPO}@${VERSION}\
+          " -o dist/openagent .
+
+      - name: Start backend
+        run: |
+          set -euo pipefail
+          nohup ./dist/openagent > /tmp/openagent-tag-dist.log 2>&1 &
+          echo $! > /tmp/openagent-tag-dist.pid
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:14000/ >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Verify tag-matched CDN frontend
+        run: |
+          set -euo pipefail
+          html="$(curl -fsS http://127.0.0.1:14000/)"
+          echo "$html" | grep -q "${DIST_REPO}@${VERSION}/static/js/"
+          echo "$html" | grep -q "${DIST_REPO}@${VERSION}/static/css/"
+
+      - name: Stop backend
+        if: always()
+        run: |
+          if [ -f /tmp/openagent-tag-dist.pid ]; then
+            kill "$(cat /tmp/openagent-tag-dist.pid)" || true
+          fi
+
+      - name: Show backend log
+        if: always()
+        run: cat /tmp/openagent-tag-dist.log || true
