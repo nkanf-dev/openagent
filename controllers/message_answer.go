@@ -220,6 +220,9 @@ func generateMessageAnswer(id string, responseWriter http.ResponseWriter, host s
 			"- Mutable facts need live checks: use tools rather than memory.\n" +
 			"- Longer work: brief progress update, then keep going."
 	}
+	if store.EmbeddingProvider != "" {
+		store.Prompt += "\nWhen the user shares a durable preference, personal convention, or standing instruction that should be remembered in future conversations for this store, call `store_memory` to save it."
+	}
 
 	if len(store.Skills) > 0 {
 		skillsContent, skillErr := object.GetSkillsCatalog(store.Owner, store.Skills)

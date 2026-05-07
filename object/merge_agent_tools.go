@@ -33,6 +33,10 @@ func buildMergedBuiltinRegistry(store *Store, lang string) *tool.ToolRegistry {
 		}
 	}
 
+	if bt := NewStoreMemoryBuiltin(store, lang); bt != nil {
+		reg.RegisterTool(bt)
+	}
+
 	toolNames := store.Tools
 	if len(toolNames) == 1 && toolNames[0] == "All" {
 		allTools, err := GetTools(store.Owner)

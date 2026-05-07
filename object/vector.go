@@ -71,6 +71,15 @@ func getVectorsByProvider(relatedStores []string, provider string) ([]*Vector, e
 	return vectors, nil
 }
 
+func getMemoryVectors(owner string, storeName string) ([]*Vector, error) {
+	vectors := []*Vector{}
+	err := adapter.engine.Where("owner = ? and store = ? and file = ?", owner, storeName, "__store_memory__").Find(&vectors)
+	if err != nil {
+		return nil, err
+	}
+	return vectors, nil
+}
+
 func getVector(owner string, name string) (*Vector, error) {
 	vector := Vector{Owner: owner, Name: name}
 	existed, err := adapter.engine.Get(&vector)
