@@ -19,7 +19,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ThinkInAIXYZ/go-mcp/protocol"
 	"github.com/openai/openai-go/v2/responses"
@@ -202,6 +204,26 @@ func createToolMessage(toolCall openai.ToolCall, text string) *RawMessage {
 	}
 }
 
+func startHeartbeat(writer io.Writer) chan<- struct{} {
+	stop := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if flusher, ok := writer.(http.Flusher); ok {
+					_, _ = fmt.Fprint(writer, ":keepalive\n\n")
+					flusher.Flush()
+				}
+			case <-stop:
+				return
+			}
+		}
+	}()
+	return stop
+}
+
 func callMcpTool(toolCall openai.ToolCall, serverName, toolName string, mcpToolSet *mcp.ToolSet, messages []*RawMessage, writer io.Writer, lang string) ([]*RawMessage, error) {
 	var arguments map[string]interface{}
 	ctx := context.Background()
@@ -222,6 +244,9 @@ func callMcpTool(toolCall openai.ToolCall, serverName, toolName string, mcpToolS
 	}
 
 	var result *protocol.CallToolResult
+
+	heartbeat := startHeartbeat(writer)
+	defer close(heartbeat)
 
 	if serverName == "" {
 		// builtin tools
