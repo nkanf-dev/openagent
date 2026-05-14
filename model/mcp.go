@@ -21,6 +21,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ThinkInAIXYZ/go-mcp/protocol"
@@ -204,7 +205,7 @@ func createToolMessage(toolCall openai.ToolCall, text string) *RawMessage {
 	}
 }
 
-func startHeartbeat(writer io.Writer) chan<- struct{} {
+func startHeartbeat(writer io.Writer, mu *sync.Mutex) chan<- struct{} {
 	stop := make(chan struct{})
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
@@ -212,10 +213,12 @@ func startHeartbeat(writer io.Writer) chan<- struct{} {
 		for {
 			select {
 			case <-ticker.C:
+				mu.Lock()
 				if flusher, ok := writer.(http.Flusher); ok {
 					_, _ = fmt.Fprint(writer, ":keepalive\n\n")
 					flusher.Flush()
 				}
+				mu.Unlock()
 			case <-stop:
 				return
 			}
@@ -243,9 +246,10 @@ func callMcpTool(toolCall openai.ToolCall, serverName, toolName string, mcpToolS
 		_ = flushDataThink(string(toolStartJSON), "tool-start", writer, lang)
 	}
 
+	var mu sync.Mutex
 	var result *protocol.CallToolResult
 
-	heartbeat := startHeartbeat(writer)
+	heartbeat := startHeartbeat(writer, &mu)
 	defer close(heartbeat)
 
 	if serverName == "" {
@@ -313,8 +317,10 @@ func callMcpTool(toolCall openai.ToolCall, serverName, toolName string, mcpToolS
 	}
 	toolJSON, err := json.Marshal(toolData)
 	if err == nil {
+		mu.Lock()
 		if err := flushDataThink(string(toolJSON), "tool", writer, lang); err == nil {
 		}
+		mu.Unlock()
 	}
 
 	messages = append(messages, createToolMessage(toolCall, string(responseJson)))
