@@ -142,15 +142,31 @@ export function updateMessage(owner, name, message, isHitOnly = false) {
   }).then(res => Setting.handleFetchResponse(res));
 }
 
-export function closeMessageEventSource(owner, name) {
+export function closeMessageEventSource(owner, name, cancel = false) {
   const key = `${owner}/${name}`;
   if (eventSourceMap.has(key)) {
     const eventSource = eventSourceMap.get(key);
     eventSource.close();
     eventSourceMap.delete(key);
+    if (cancel) {
+      cancelMessageAnswer(owner, name).catch(() => {});
+    }
     return true;
   }
+  if (cancel) {
+    cancelMessageAnswer(owner, name).catch(() => {});
+  }
   return false;
+}
+
+export function cancelMessageAnswer(owner, name) {
+  return fetch(`${Setting.ServerUrl}/api/cancel-message-answer?id=${owner}/${encodeURIComponent(name)}`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Accept-Language": Setting.getAcceptLanguage(),
+    },
+  }).then(res => Setting.handleFetchResponse(res));
 }
 
 export function addMessage(message) {
