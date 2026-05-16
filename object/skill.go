@@ -339,6 +339,7 @@ func resolveEnabledSkills(owner string, skillNames []string) ([]*Skill, error) {
 		return nil, nil
 	}
 
+	hasAll := false
 	var names []string
 	for _, name := range skillNames {
 		name = strings.TrimSpace(name)
@@ -346,9 +347,13 @@ func resolveEnabledSkills(owner string, skillNames []string) ([]*Skill, error) {
 			continue
 		}
 		if name == "All" {
-			return GetSkills(owner)
+			hasAll = true
+			continue
 		}
 		names = append(names, name)
+	}
+	if hasAll {
+		return GetSkills(owner)
 	}
 
 	var skills []*Skill
@@ -542,7 +547,14 @@ func GetSkillsContent(owner string, skillNames []string) (string, error) {
 		if s == nil || s.State != "Active" || strings.TrimSpace(s.Content) == "" {
 			continue
 		}
-		parts = append(parts, strings.TrimSpace(s.Content))
+		buf := strings.TrimSpace(s.Content)
+		for _, ref := range s.References {
+			if strings.TrimSpace(ref.Content) == "" {
+				continue
+			}
+			buf += "\n\n## Reference: " + ref.Name + "\n\n" + strings.TrimSpace(ref.Content)
+		}
+		parts = append(parts, buf)
 	}
 
 	return strings.Join(parts, "\n\n"), nil
