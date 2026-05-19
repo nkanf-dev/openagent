@@ -102,12 +102,12 @@ function LongTextCell({ text }: { text?: string | null }) {
   if (!text) return null
   const plain = text.replace(/<[^>]*>/g, "")
   if (plain.length <= 200) {
-    return <div className="max-w-72" dangerouslySetInnerHTML={{ __html: text }} />
+    return <div className="max-w-72 whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: text }} />
   }
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="max-w-72 cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap">
+        <div className="max-w-72 cursor-pointer line-clamp-5 whitespace-pre-wrap break-words">
           {getShortText(plain, 200)}
         </div>
       </TooltipTrigger>
@@ -609,10 +609,19 @@ export default function MessageListPage() {
 
                     {/* Reason text */}
                     <TableCell className="text-sm">
-                      <div
-                        className="max-w-72"
-                        dangerouslySetInnerHTML={{ __html: msg.reasonText || "" }}
-                      />
+                      {msg.reasonText ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              className="max-w-72 cursor-pointer line-clamp-5 whitespace-pre-wrap break-words [&_p]:m-0"
+                              dangerouslySetInnerHTML={{ __html: getShortText(msg.reasonText, 500) }}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-h-96 max-w-2xl overflow-auto whitespace-pre-wrap break-words">
+                            <div dangerouslySetInnerHTML={{ __html: msg.reasonText }} />
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : null}
                     </TableCell>
 
                     {/* Text */}
