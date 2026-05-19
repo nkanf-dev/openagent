@@ -71,6 +71,8 @@ export default function ChatPage() {
   const inputStore = useRef(new Map<string | undefined, string>())
   const streamOwnerRef = useRef("")
   const streamNameRef = useRef("")
+  const inputValueRef = useRef(inputValue)
+  inputValueRef.current = inputValue
 
   const streamAnswer = useMessageStream(setMessages, setMessageLoading, setMessageError)
   const { handleMessageLike, copyMessageText } = useChatMessageHandlers(setMessages)
@@ -235,7 +237,7 @@ export default function ChatPage() {
         streamOwnerRef.current = ""
         streamNameRef.current = ""
       }
-      inputStore.current.set(chat?.name, inputValue)
+      inputStore.current.set(chat?.name, inputValueRef.current)
     }
   }, [chat?.name])
 
