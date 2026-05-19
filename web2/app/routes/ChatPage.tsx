@@ -69,6 +69,8 @@ export default function ChatPage() {
   const inputRef = useRef<ChatInputHandle>(null)
   const messageListRef = useRef<HTMLDivElement>(null)
   const inputStore = useRef(new Map<string | undefined, string>())
+  const streamOwnerRef = useRef("")
+  const streamNameRef = useRef("")
 
   const streamAnswer = useMessageStream(setMessages, setMessageLoading, setMessageError)
   const { handleMessageLike, copyMessageText } = useChatMessageHandlers(setMessages)
@@ -128,6 +130,8 @@ export default function ChatPage() {
               setMessageError(true)
               return
             }
+            streamOwnerRef.current = lastMsg.owner
+            streamNameRef.current = lastMsg.name
             streamAnswer(lastMsg, targetChat, {
               userTextForTitle: getFirstUserMessageText(msgs),
               onTitle: updateChatDisplayName,
@@ -223,9 +227,14 @@ export default function ChatPage() {
     fetchChats()
   }, [fetchChats])
 
-  // Save/restore input when chat changes
+  // Clean up stream and save/restore input when chat changes
   useEffect(() => {
     return () => {
+      if (streamOwnerRef.current) {
+        closeMessageEventSource(streamOwnerRef.current, streamNameRef.current)
+        streamOwnerRef.current = ""
+        streamNameRef.current = ""
+      }
       inputStore.current.set(chat?.name, inputValue)
     }
   }, [chat?.name])
@@ -334,6 +343,8 @@ export default function ChatPage() {
     setChat(selected)
     setDraftStoreName(selected.store)
     setMessageError(false)
+    setMessageLoading(false)
+    setFiles([])
     setMobileMenuOpen(false)
     loadMessages(selected)
     navigate(generateChatUrl(selected.name, selected.store), { replace: true })
