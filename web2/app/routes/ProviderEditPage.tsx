@@ -584,7 +584,7 @@ export default function ProviderEditPage() {
         </FormField>
         {showSubType && (
           <FormField label={i18next.t("provider:Sub type")} tooltip={i18next.t("provider:Sub type - Tooltip")}>
-            {provider.type === "Ollama" ? (
+            {provider.type === "Ollama" || provider.type === "OpenAI Compatible" ? (
               <DataListInput value={provider.subType} options={subtypeOptions} onChange={(v) => update("subType", v)} disabled={disabled} placeholder="Please select or enter the model name" />
             ) : (
               <SelectField value={provider.subType} options={subtypeOptions} onChange={(v) => update("subType", v)} disabled={disabled} />
