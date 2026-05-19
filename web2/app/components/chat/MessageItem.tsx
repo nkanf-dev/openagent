@@ -306,7 +306,7 @@ export default function MessageItem({
           </div>
 
           {/* Footer */}
-          {!message.isReasoningPhase && (disableInput === false || !isLastMessage) && (
+          {!message.isReasoningPhase && (!disableInput || !isLastMessage) && (
             <div className="mt-2 flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <MessageActions
