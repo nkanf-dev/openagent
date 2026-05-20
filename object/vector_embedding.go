@@ -171,10 +171,10 @@ func addVectorsForFile(embeddingProviderObj embedding.EmbeddingProvider, storeNa
 	return affected, totalTokenCount, nil
 }
 
-func withFileStatus(owner string, storeName string, fileKey string, op func() (bool, int, error)) (bool, error) {
-	err := updateFileStatus(owner, storeName, fileKey, FileStatusProcessing, "", 0)
+func withFileStatus(owner string, storeName string, fileName string, fileKey string, op func() (bool, int, error)) (bool, error) {
+	err := updateFileStatus(owner, fileName, FileStatusProcessing, "", 0)
 	if err != nil {
-		logs.Error("Failed to update file status for store: [%s], file: [%s]: %v", storeName, fileKey, err)
+		logs.Error("Failed to update file status for store: [%s], file: [%s], key: [%s]: %v", storeName, fileName, fileKey, err)
 		return false, err
 	}
 
@@ -187,9 +187,9 @@ func withFileStatus(owner string, storeName string, fileKey string, op func() (b
 		errorText = opErr.Error()
 	}
 
-	err = updateFileStatus(owner, storeName, fileKey, fileStatus, errorText, tokenCount)
+	err = updateFileStatus(owner, fileName, fileStatus, errorText, tokenCount)
 	if err != nil {
-		logs.Error("Failed to update file status for store: [%s], file: [%s]: %v", storeName, fileKey, err)
+		logs.Error("Failed to update file status for store: [%s], file: [%s], key: [%s]: %v", storeName, fileName, fileKey, err)
 		return affected, errors.Join(opErr, err)
 	}
 
@@ -210,7 +210,25 @@ func addVectorsForStore(storageProviderObj storage.StorageProvider, embeddingPro
 	files = filterTextFiles(files)
 
 	for _, file := range files {
-		fileAffected, err := withFileStatus(owner, storeName, file.Key, func() (bool, int, error) {
+		dbFile, err := getFileByFilename(owner, storeName, file.Key)
+		if err != nil {
+			logs.Error("Failed to query file record for store: [%s], file: [%s]: %v", storeName, file.Key, err)
+			continue
+		}
+		if dbFile == nil {
+			// Fallback for old data where Filename is empty and Name = storeName_objectKey
+			oldName := fmt.Sprintf("%s_%s", storeName, file.Key)
+			dbFile, err = getFile(owner, oldName)
+			if err != nil {
+				logs.Error("Failed to query file record by old name for store: [%s], file: [%s]: %v", storeName, file.Key, err)
+				continue
+			}
+		}
+		if dbFile == nil {
+			logs.Error("File record not found for store: [%s], file: [%s]", storeName, file.Key)
+			continue
+		}
+		fileAffected, err := withFileStatus(owner, storeName, dbFile.Name, file.Key, func() (bool, int, error) {
 			return addVectorsForFile(embeddingProviderObj, storeName, file.Key, file.Url, splitProviderName, embeddingProviderName, modelSubType, lang)
 		})
 		if err != nil {

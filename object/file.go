@@ -16,6 +16,8 @@ package object
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -128,11 +130,7 @@ func AddFile(file *File) (bool, error) {
 }
 
 func DeleteFile(file *File, lang string) (bool, error) {
-	var objectKey string
-	prefix := fmt.Sprintf("%s_", file.Store)
-	if strings.HasPrefix(file.Name, prefix) {
-		objectKey = strings.TrimPrefix(file.Name, prefix)
-	}
+	objectKey := file.getObjectKey()
 	if objectKey == "" {
 		return false, fmt.Errorf(i18n.Translate(lang, "object:The file: %s is not found"), file.Name)
 	}
@@ -171,6 +169,17 @@ func (file *File) GetId() string {
 	return fmt.Sprintf("%s/%s", file.Owner, file.Name)
 }
 
+func (file *File) getObjectKey() string {
+	if file.Filename != "" {
+		return file.Filename
+	}
+	prefix := fmt.Sprintf("%s_", file.Store)
+	if strings.HasPrefix(file.Name, prefix) {
+		return strings.TrimPrefix(file.Name, prefix)
+	}
+	return ""
+}
+
 func UploadFileToStore(storeId string, userName string, filename string, fileData multipart.File, lang string) (bool, error) {
 	store, err := GetStore(storeId)
 	if err != nil {
@@ -198,9 +207,14 @@ func UploadFileToStore(storeId string, userName string, filename string, fileDat
 		return false, err
 	}
 
+	fileId, err := generateFileId()
+	if err != nil {
+		return false, err
+	}
+
 	fileRecord := &File{
 		Owner:           store.Owner,
-		Name:            getFileName(store.Name, objectKey),
+		Name:            fileId,
 		CreatedTime:     util.GetCurrentTime(),
 		Filename:        filename,
 		Size:            int64(len(bs)),
@@ -216,7 +230,7 @@ func UploadFileToStore(storeId string, userName string, filename string, fileDat
 	}
 
 	go func() {
-		_, vectorErr := AddVectorsForFile(store, objectKey, fileUrl, lang)
+		_, vectorErr := AddVectorsForFile(store, fileRecord.Name, objectKey, fileUrl, lang)
 		if vectorErr != nil {
 			logs.Error("Failed to generate vectors for file %s: %v", objectKey, vectorErr)
 		}
@@ -225,8 +239,12 @@ func UploadFileToStore(storeId string, userName string, filename string, fileDat
 	return true, nil
 }
 
-func getFileName(storeName string, objectKey string) string {
-	return fmt.Sprintf("%s_%s", storeName, objectKey)
+func generateFileId() (string, error) {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("file_%s", hex.EncodeToString(b)), nil
 }
 
 func GetFileCount(owner, field, value string) (int64, error) {
@@ -245,8 +263,7 @@ func GetPaginationFiles(owner string, offset, limit int, field, value, sortField
 	return files, nil
 }
 
-func updateFileStatus(owner string, storeName string, objectKey string, status FileStatus, errorText string, tokenCount int) error {
-	name := getFileName(storeName, objectKey)
+func updateFileStatus(owner string, fileName string, status FileStatus, errorText string, tokenCount int) error {
 	cols := []string{"status", "error_text"}
 	file := &File{Status: status, ErrorText: errorText}
 	if status == FileStatusProcessing {
@@ -256,7 +273,7 @@ func updateFileStatus(owner string, storeName string, objectKey string, status F
 		cols = append(cols, "token_count")
 		file.TokenCount = tokenCount
 	}
-	_, err := adapter.engine.ID(core.PK{owner, name}).Cols(cols...).Update(file)
+	_, err := adapter.engine.ID(core.PK{owner, fileName}).Cols(cols...).Update(file)
 	return err
 }
 
@@ -266,8 +283,19 @@ func UpdateFilesStatusByStore(owner string, storeName string, status FileStatus)
 	return err
 }
 
-func deleteFileRecord(owner string, storeName string, objectKey string) error {
-	name := getFileName(storeName, objectKey)
-	_, err := adapter.engine.ID(core.PK{owner, name}).Delete(&File{})
+func deleteFileRecord(owner string, fileName string) error {
+	_, err := adapter.engine.ID(core.PK{owner, fileName}).Delete(&File{})
 	return err
+}
+
+func getFileByFilename(owner string, storeName string, filename string) (*File, error) {
+	file := &File{}
+	has, err := adapter.engine.Where("owner = ? and store = ? and filename = ?", owner, storeName, filename).Get(file)
+	if err != nil {
+		return nil, err
+	}
+	if !has {
+		return nil, nil
+	}
+	return file, nil
 }

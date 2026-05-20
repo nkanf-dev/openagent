@@ -392,7 +392,7 @@ func RefreshStoreVectors(store *Store, lang string) (bool, error) {
 	return ok, err
 }
 
-func AddVectorsForFile(store *Store, fileName string, fileUrl string, lang string) (bool, error) {
+func AddVectorsForFile(store *Store, fileName string, objectKey string, fileUrl string, lang string) (bool, error) {
 	modelProvider, err := store.GetModelProvider()
 	if err != nil {
 		return false, err
@@ -414,8 +414,8 @@ func AddVectorsForFile(store *Store, fileName string, fileUrl string, lang strin
 		return false, err
 	}
 
-	ok, err := withFileStatus(store.Owner, store.Name, fileName, func() (bool, int, error) {
-		return addVectorsForFile(embeddingProviderObj, store.Name, fileName, fileUrl, store.SplitProvider, embeddingProvider.Name, modelProvider.SubType, lang)
+	ok, err := withFileStatus(store.Owner, store.Name, fileName, objectKey, func() (bool, int, error) {
+		return addVectorsForFile(embeddingProviderObj, store.Name, objectKey, fileUrl, store.SplitProvider, embeddingProvider.Name, modelProvider.SubType, lang)
 	})
 
 	return ok, err
@@ -430,13 +430,7 @@ func RefreshFileVectors(file *File, lang string) (bool, error) {
 		return false, fmt.Errorf(i18n.Translate(lang, "account:The store: %s is not found"), file.Store)
 	}
 
-	var objectKey string
-	prefix := fmt.Sprintf("%s_", file.Store)
-	if strings.HasPrefix(file.Name, prefix) {
-		objectKey = strings.TrimPrefix(file.Name, prefix)
-	} else {
-		objectKey = file.Name
-	}
+	objectKey := file.getObjectKey()
 	if objectKey == "" {
 		return false, fmt.Errorf(i18n.Translate(lang, "object:The file: %s is not found"), file.Name)
 	}
@@ -450,7 +444,7 @@ func RefreshFileVectors(file *File, lang string) (bool, error) {
 		return false, err
 	}
 
-	return AddVectorsForFile(store, objectKey, file.Url, lang)
+	return AddVectorsForFile(store, file.Name, objectKey, file.Url, lang)
 }
 
 func refreshVector(vector *Vector, lang string) (bool, error) {
