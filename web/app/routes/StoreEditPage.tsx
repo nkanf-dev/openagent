@@ -500,23 +500,6 @@ export default function StoreEditPage() {
             </FormField>
           </>
         )}
-        <FormField label={i18next.t("store:Memory limit")} tooltip={i18next.t("store:Memory limit - Tooltip")}>
-          <NumberInput
-            value={store.memoryLimit}
-            onChange={(v) => update("memoryLimit", v)}
-            min={0}
-          />
-        </FormField>
-        {store.enableExtraOptions && (
-          <>
-            <FormField label={i18next.t("store:Frequency")} tooltip={i18next.t("store:Frequency - Tooltip")}>
-              <NumberInput value={store.frequency} onChange={(v) => update("frequency", v)} min={0} />
-            </FormField>
-            <FormField label={i18next.t("store:Limit minutes")} tooltip={i18next.t("store:Limit minutes - Tooltip")}>
-              <NumberInput value={store.limitMinutes} onChange={(v) => update("limitMinutes", v)} min={0} />
-            </FormField>
-          </>
-        )}
       </SectionCard>
 
       {/* Chat */}
