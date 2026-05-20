@@ -10,6 +10,9 @@ export function useTts() {
   const [isReading, setIsReading] = useState(false)
   const [isLoadingTTS, setIsLoadingTTS] = useState(false)
   const [readingMessage, setReadingMessage] = useState<string | undefined>()
+  const [autoRead, setAutoRead] = useState(() => {
+    try { return localStorage.getItem("autoRead") === "true" } catch { return false }
+  })
 
   const synthRef = useRef<SpeechSynthesis | null>(null)
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
@@ -184,6 +187,11 @@ export function useTts() {
     setIsReading(true)
   }
 
+  function setAutoReadEnabled(enabled: boolean) {
+    setAutoRead(enabled)
+    try { localStorage.setItem("autoRead", String(enabled)) } catch {}
+  }
+
   const handleToggleRead = useCallback((message: Message, store: Store | undefined) => {
     const isCurrentBeingRead = readingMessage === message.name
 
@@ -238,11 +246,21 @@ export function useTts() {
     }
   }, [isReading, readingMessage])
 
+  const autoReadMessage = useCallback((message: Message, store: Store | undefined) => {
+    if (!autoRead || isReading || readingMessage) return
+    if (message.author === "AI" && message.text) {
+      handleToggleRead(message, store)
+    }
+  }, [autoRead, isReading, readingMessage, handleToggleRead])
+
   return {
     isReading,
     isLoadingTTS,
     readingMessage,
     handleToggleRead,
     cancelTts: cancelReading,
+    autoRead,
+    setAutoRead: setAutoReadEnabled,
+    autoReadMessage,
   }
 }

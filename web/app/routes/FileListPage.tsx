@@ -14,6 +14,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
 import {
   EditIcon,
   Loader2Icon,
@@ -88,6 +89,7 @@ type SearchField = "store" | "name" | "filename" | "storageProvider" | "status" 
 export default function FileListPage() {
   const navigate = useNavigate()
   const { account } = useAccount()
+  const storeFilter = useStoreFilter()
   const isAdmin = isLocalAdminUser(account)
 
   const [files, setFiles] = useState<FileItem[]>([])
@@ -107,11 +109,11 @@ export default function FileListPage() {
   useEffect(() => {
     fetchFiles()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [storeFilter])
 
   function fetchFiles() {
     setLoading(true)
-    getFiles("admin")
+    getFiles("admin", storeFilter)
       .then((res) => {
         if (res.status === "ok") {
           const data: FileItem[] = res.data ?? []

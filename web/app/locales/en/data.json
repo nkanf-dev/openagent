@@ -31,6 +31,7 @@
     "User key": "User key"
   },
   "chat": {
+    "Mode": "Mode",
     "Add attachment": "Add attachment",
     "Arguments": "Arguments",
     "Default Category": "Default Category",
@@ -145,6 +146,7 @@
     "Host": "Host",
     "ID": "ID",
     "Identity": "Identity",
+    "Image": "Image",
     "Identity requires Casdoor": "Identity Requires Casdoor",
     "Inactive": "Inactive",
     "Is alerted": "Is alerted",
@@ -606,6 +608,7 @@
     "Skill folder path placeholder": "e.g. /Users/alice/skills/my-skill  or  D:\\skills\\my-skill"
   },
   "store": {
+    "Auto read": "Auto read",
     "All": "All",
     "Chat count": "Chat count",
     "Child model providers": "Child model providers",

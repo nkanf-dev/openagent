@@ -8,6 +8,8 @@ import { Sheet, SheetContent } from "~/components/ui/sheet"
 import { Skeleton } from "~/components/ui/skeleton"
 import ChatMenu, { type ChatMenuHandle } from "~/components/chat/ChatMenu"
 import ChatInput, { type ChatInputHandle } from "~/components/chat/ChatInput"
+import ChatHeaderControls from "~/components/chat/ChatHeaderControls"
+import MultiPaneManager from "~/components/chat/MultiPaneManager"
 import MessageList from "~/components/chat/MessageList"
 import WelcomeHeader from "~/components/chat/WelcomeHeader"
 import { getFirstUserMessageText } from "~/carrier/titleUtils"
@@ -24,6 +26,7 @@ import type { Store } from "~/backend/StoreBackend"
 import { useMessageStream } from "~/hooks/useMessageStream"
 import { useChatMessageHandlers } from "~/hooks/useChatMessageHandlers"
 import { useTts } from "~/hooks/useTts"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
 
 type UploadedFile = {
   uid: number
@@ -40,6 +43,7 @@ export default function ChatPage() {
     storeName?: string
   }>()
   const { account } = useAccount()
+  const storeFilter = useStoreFilter()
 
   // State
   const [chats, setChats] = useState<Chat[]>([])
@@ -54,13 +58,15 @@ export default function ChatPage() {
     try { return JSON.parse(localStorage.getItem("chatMenuCollapsed") || "false") } catch { return false }
   })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [draftStoreName, setDraftStoreName] = useState<string | undefined>(storeNameParam)
+  const [draftStoreName, setDraftStoreName] = useState<string | undefined>(storeFilter || undefined)
+  const [draftModelProvider, setDraftModelProvider] = useState<string | undefined>()
+  const [paneCount, setPaneCount] = useState(1)
 
   // Input state (lifted up from ChatBox)
   const [inputValue, setInputValue] = useState("")
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
-  const { isReading, isLoadingTTS, readingMessage, handleToggleRead } = useTts()
+  const { isReading, isLoadingTTS, readingMessage, handleToggleRead, autoRead, setAutoRead, autoReadMessage } = useTts()
   const [isVoiceInput, setIsVoiceInput] = useState(false)
 
   // Refs
@@ -194,8 +200,7 @@ export default function ChatPage() {
     const shouldShowPageLoading = !chatsLoadedRef.current
     if (shouldShowPageLoading) setLoading(true)
 
-    const storeName = storeNameParam || ""
-    getChats(account.name, storeName, -1, -1, "user", account.name).then((res) => {
+    getChats(account.name, storeFilter, -1, -1, "user", account.name).then((res) => {
       if (res.status !== "ok") {
         chatsLoadedRef.current = true
         setLoading(false)
@@ -211,7 +216,8 @@ export default function ChatPage() {
         latestMessageChatRef.current = ""
         setChat(undefined)
         setMessages([])
-        setDraftStoreName(storeNameParam)
+        setDraftStoreName(storeFilter || undefined)
+        setDraftModelProvider(undefined)
         menuRef.current?.clearSelectedKey()
         fetchStores()
         return
@@ -222,19 +228,21 @@ export default function ChatPage() {
         latestMessageChatRef.current = ""
         setChat(undefined)
         setMessages([])
-        setDraftStoreName(storeNameParam)
+        setDraftStoreName(storeFilter || undefined)
+        setDraftModelProvider(undefined)
         menuRef.current?.clearSelectedKey()
-        navigate(generateChatUrl(undefined, storeNameParam), { replace: true })
+        navigate(generateChatUrl(undefined, storeFilter || undefined), { replace: true })
         fetchStores()
         return
       }
 
       setChat(targetChat)
       setDraftStoreName(targetChat.store)
+      setDraftModelProvider(targetChat.modelProvider)
       loadMessages(targetChat)
       fetchStores()
     })
-  }, [account?.name, chatNameParam, storeNameParam])
+  }, [account?.name, chatNameParam, storeFilter])
 
   useEffect(() => {
     fetchChats()
@@ -271,7 +279,7 @@ export default function ChatPage() {
       name: `message_${randomName}`,
       createdTime: new Date().toISOString(),
       organization: account.owner,
-      store: chat?.store || draftStoreName || storeNameParam || defaultStore?.name || "",
+      store: chat?.store || draftStoreName || storeFilter || defaultStore?.name || "",
       user: account.name,
       chat: chat?.name,
       replyTo: "",
@@ -283,7 +291,7 @@ export default function ChatPage() {
       isRegenerated,
       fileName: fileName || (files[0]?.file.name ?? ""),
       webSearchEnabled: wsEnabled,
-      modelProvider: chat?.modelProvider || getCurrentStore()?.modelProvider,
+      modelProvider: chat?.modelProvider || draftModelProvider || getCurrentStore()?.modelProvider,
     }
 
     addMessage(newMessage).then((res) => {
@@ -300,7 +308,7 @@ export default function ChatPage() {
       navigate(generateChatUrl(returnedChat.name, returnedChat.store), { replace: true })
 
       // Refresh chat list
-      getChats(account.name, storeNameParam || "", -1, -1, "user", account.name).then((r) => {
+      getChats(account.name, storeFilter, -1, -1, "user", account.name).then((r) => {
         if (r.status === "ok") {
           setChats(r.data || [])
           menuRef.current?.setSelectedKeyToChat(r.data || [], returnedChat.name)
@@ -329,7 +337,7 @@ export default function ChatPage() {
       createdTime: new Date().toISOString(),
       store: getCurrentStore()?.name,
       webSearchEnabled,
-      modelProvider: chat?.modelProvider || getCurrentStore()?.modelProvider,
+      modelProvider: chat?.modelProvider || draftModelProvider || getCurrentStore()?.modelProvider,
     }
     addMessage(editedMessage).then((res) => {
       if (res.status === "ok") {
@@ -371,12 +379,13 @@ export default function ChatPage() {
   }
 
   function handleAddChat(store?: Store) {
-    const sName = store?.name || storeNameParam || ""
+    const sName = store?.name || storeFilter || ""
     latestMessageChatRef.current = ""
     setChat(undefined)
     setMessages([])
     setMessageError(false)
     setDraftStoreName(sName)
+    setDraftModelProvider(store?.modelProvider)
     setInputValue("")
     setFiles([])
     setMobileMenuOpen(false)
@@ -400,11 +409,13 @@ export default function ChatPage() {
         latestMessageChatRef.current = ""
         setChat(undefined)
         setMessages([])
+        setDraftModelProvider(undefined)
         navigate("/chat", { replace: true })
       } else {
         const next = newChats[Math.min(index, newChats.length - 1)]
         setChat(next)
         setDraftStoreName(next.store)
+        setDraftModelProvider(next.modelProvider)
         loadMessages(next)
         navigate(generateChatUrl(next.name, next.store), { replace: true })
       }
@@ -431,10 +442,20 @@ export default function ChatPage() {
     localStorage.setItem("chatMenuCollapsed", JSON.stringify(next))
   }
 
+  const currentStore = getCurrentStore()
+
+  // Auto-read the last AI message when messages change
+  useEffect(() => {
+    if (!messages.length || !currentStore) return
+    const lastMsg = messages[messages.length - 1]
+    if (lastMsg.author === "AI" && lastMsg.text && !messageLoading) {
+      autoReadMessage(lastMsg, currentStore)
+    }
+  }, [messages, messageLoading, currentStore, autoReadMessage])
+
   // ── Render ────────────────────────────────────────────────────────────
 
   const mobile = isMobile()
-  const currentStore = getCurrentStore()
 
   const sidebarContent = (
     <ChatMenu
@@ -446,7 +467,7 @@ export default function ChatPage() {
       onDeleteChat={handleDeleteChat}
       onUpdateChatName={handleUpdateChatName}
       stores={stores}
-      currentStoreName={storeNameParam}
+      currentStoreName={storeFilter || undefined}
     />
   )
 
@@ -488,7 +509,7 @@ export default function ChatPage() {
       {/* Main chat area */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Header */}
-        <div className="supports-[backdrop-filter]:bg-background/80 flex shrink-0 items-center gap-1 border-b bg-background/95 px-2 py-1 backdrop-blur-sm">
+        <div className="supports-[backdrop-filter]:bg-background/80 flex shrink-0 flex-wrap items-center gap-2 border-b bg-background/95 px-3 py-2 backdrop-blur-sm">
           {mobile ? (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMobileMenuOpen(true)}>
               <MenuIcon className="h-4 w-4" />
@@ -504,70 +525,116 @@ export default function ChatPage() {
           )}
 
           {chat ? (
-            <span className="flex-1 truncate text-sm font-medium">
+            <span className="truncate text-base font-semibold">
               {chat.displayName || chat.name}
             </span>
           ) : (
-            <div className="flex-1" />
+            <span className="text-base font-semibold">
+              {t("chat:New Chat")}
+            </span>
           )}
+
+          <div className="min-w-4 flex-1" />
+
+          <ChatHeaderControls
+            chat={chat}
+            stores={stores}
+            currentStore={currentStore}
+            defaultStore={defaultStore}
+            selectedModelProvider={draftModelProvider}
+            autoRead={autoRead}
+            onAutoReadChange={setAutoRead}
+            onChatUpdated={(updated) => {
+              setChat(updated)
+              setDraftStoreName(updated.store)
+              setDraftModelProvider(updated.modelProvider)
+              setChats((prev) => prev.map((c) => (c.name === updated.name ? updated : c)))
+            }}
+            onStoreSelected={(store) => {
+              setDraftStoreName(store.name)
+              setDraftModelProvider(store.modelProvider)
+              navigate(generateChatUrl(undefined, store.name), { replace: true })
+            }}
+            onDraftModelProviderChange={setDraftModelProvider}
+            paneCount={paneCount}
+            onPaneCountChange={setPaneCount}
+            showPaneControls={true}
+            disabled={messageLoading}
+          />
         </div>
 
-        {/* Messages */}
-        <div className="relative min-h-0 flex-1 overflow-hidden">
-          {/* Background logo watermark */}
-          {messages.length > 0 && (
-            <div
-              className="pointer-events-none absolute inset-0 bg-center bg-no-repeat opacity-[0.04]"
-              style={{
-                backgroundImage: `url(https://cdn.openagentai.org/img/openagent-logo_1900x450.png)`,
-                backgroundSize: "200px auto",
-              }}
-            />
-          )}
-
-          <div className="flex h-full min-h-0 flex-col">
-            {messages.length === 0 ? (
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <WelcomeHeader store={currentStore} />
-              </div>
-            ) : (
-              <MessageList
-                ref={messageListRef}
-                messages={messages}
-                account={account}
-                store={currentStore}
-                onRegenerate={handleRegenerate}
-                onMessageLike={handleMessageLike}
-                onCopyMessage={copyMessageText}
-                onToggleRead={(m) => handleToggleRead(m, currentStore)}
-                onEditMessage={handleEditMessage}
-                isReading={isReading}
-                isLoadingTTS={isLoadingTTS}
-                readingMessage={readingMessage}
-                sendMessage={(text, fileName) => sendMessage(text, fileName || "")}
-                files={files}
-                hideThinking={currentStore?.hideThinking}
+        {/* Messages or Multi-Pane Manager */}
+        {paneCount > 1 ? (
+          <MultiPaneManager
+            stores={stores}
+            defaultStore={defaultStore}
+            initialChat={chat}
+            paneCount={paneCount}
+            onPaneCountChange={setPaneCount}
+            onChatUpdate={(updated) => {
+              setChat(updated)
+              setDraftStoreName(updated.store)
+              setDraftModelProvider(updated.modelProvider)
+              setChats((prev) => prev.map((c) => (c.name === updated.name ? updated : c)))
+            }}
+          />
+        ) : (
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            {/* Background logo watermark */}
+            {messages.length > 0 && (
+              <div
+                className="pointer-events-none absolute inset-0 bg-center bg-no-repeat opacity-[0.04]"
+                style={{
+                  backgroundImage: `url(https://cdn.openagentai.org/img/openagent-logo_1900x450.png)`,
+                  backgroundSize: "200px auto",
+                }}
               />
             )}
 
-            <ChatInput
-              ref={inputRef}
-              value={inputValue}
-              store={currentStore}
-              chat={chat}
-              files={files}
-              onFileChange={setFiles}
-              onChange={setInputValue}
-              onSend={handleSend}
-              loading={messageLoading}
-              messageError={messageError}
-              onCancelMessage={handleCancelMessage}
-              webSearchEnabled={webSearchEnabled}
-              onWebSearchChange={setWebSearchEnabled}
-              isVoiceInput={isVoiceInput}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+              {messages.length === 0 ? (
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <WelcomeHeader store={currentStore} />
+                </div>
+              ) : (
+                <MessageList
+                  ref={messageListRef}
+                  messages={messages}
+                  account={account}
+                  store={currentStore}
+                  onRegenerate={handleRegenerate}
+                  onMessageLike={handleMessageLike}
+                  onCopyMessage={copyMessageText}
+                  onToggleRead={(m) => handleToggleRead(m, currentStore)}
+                  onEditMessage={handleEditMessage}
+                  isReading={isReading}
+                  isLoadingTTS={isLoadingTTS}
+                  readingMessage={readingMessage}
+                  sendMessage={(text, fileName) => sendMessage(text, fileName || "")}
+                  files={files}
+                  hideThinking={currentStore?.hideThinking}
+                />
+              )}
+
+              <ChatInput
+                ref={inputRef}
+                value={inputValue}
+                store={currentStore}
+                chat={chat}
+                files={files}
+                onFileChange={setFiles}
+                onChange={setInputValue}
+                onSend={handleSend}
+                loading={messageLoading}
+                messageError={messageError}
+                onCancelMessage={handleCancelMessage}
+                webSearchEnabled={webSearchEnabled}
+                onWebSearchChange={setWebSearchEnabled}
+                isVoiceInput={isVoiceInput}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

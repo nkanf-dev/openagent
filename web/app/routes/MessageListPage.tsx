@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
 import { DownloadIcon, EditIcon, Loader2Icon, PlusIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 import i18next from "i18next"
@@ -142,8 +143,7 @@ export default function MessageListPage() {
   const isAdmin = isLocalAdminUser(account)
   const isRealAdmin = account?.name === "admin"
 
-  const storeParam = searchParams.get("store") || ""
-  const storeForApi = storeParam && account ? `${account.owner}/${storeParam}` : ""
+  const storeForApi = useStoreFilter()
 
   const fetchMessages = useCallback(
     (params: {
@@ -196,7 +196,7 @@ export default function MessageListPage() {
       fetchMessages({ current: 1 })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.name])
+  }, [account?.name, storeForApi])
 
   useEffect(() => {
     getProviders("admin", "", "", "10000", "", "", "", "").then((res) => {

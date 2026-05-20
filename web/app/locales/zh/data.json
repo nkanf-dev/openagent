@@ -31,6 +31,7 @@
     "User key": "用户私钥"
   },
   "chat": {
+    "Mode": "模式",
     "Add attachment": "添加附件",
     "Arguments": "参数",
     "Default Category": "默认分类",
@@ -145,6 +146,7 @@
     "Host": "主机",
     "ID": "ID",
     "Identity": "身份认证",
+    "Image": "图片",
     "Identity requires Casdoor": "身份认证需要Casdoor",
     "Inactive": "已关闭",
     "Is alerted": "已警告",
@@ -606,6 +608,7 @@
     "Skill folder path placeholder": "例如：/Users/alice/skills/my-skill或D:\\skills\\my-skill"
   },
   "store": {
+    "Auto read": "自动朗读",
     "All": "全部",
     "Chat count": "会话数量",
     "Child model providers": "附属模型提供商",
