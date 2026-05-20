@@ -74,7 +74,7 @@ const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     el.style.height = Math.min(el.scrollHeight, 200) + "px"
   }, [value])
 
-  const canSend = !messageError && (value.trim() !== "" || files.length > 0) && !disableInput
+  const canSend = !messageError && !loading && (value.trim() !== "" || files.length > 0) && !disableInput
 
   const handleFileUploadClick = useCallback(() => {
     const input = document.createElement("input")
