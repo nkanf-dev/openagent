@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
 import {
   Bar,
   BarChart,
@@ -66,6 +67,7 @@ import {
   TableRow,
 } from "~/components/ui/table"
 import { useTheme } from "~/hooks/useTheme"
+import { useDeclareStoreFilter } from "~/context/StoreFilterContext"
 
 export function meta() {
   return [{ title: "Usages - OpenAgent" }]
@@ -541,6 +543,8 @@ function UsageTable({ data, isAdmin, loading }: {
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function UsagePage() {
+  useDeclareStoreFilter(true)
+  const storeFilter = useStoreFilter()
   const { account } = useAccount()
   const { theme } = useTheme()
   const isDark = theme === "dark"
@@ -579,7 +583,7 @@ export default function UsagePage() {
     setRangeUsagesWeek(null)
     setRangeUsagesMonth(null)
 
-    getUsages("", user, 30).then((res) => {
+    getUsages(storeFilter ?? "", user, 30).then((res) => {
       if (res.status === "ok") {
         setUsages(res.data ?? [])
         setUsageMetadata(res.data2 ?? null)
@@ -595,15 +599,16 @@ export default function UsagePage() {
       ["Month", setRangeUsagesMonth],
     ]
     for (const [rt, setter] of rangeSetters) {
-      getRangeUsages(rt, getCountFromRangeType(rt as RangeType), "", user).then((res) => {
+      getRangeUsages(rt, getCountFromRangeType(rt as RangeType), storeFilter ?? "", user).then((res) => {
         if (res.status === "ok") setter(res.data ?? [])
       })
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeFilter])
 
   const fetchTableInfo = useCallback((user: string, accountName: string) => {
     setTableLoading(true)
-    getUserTableInfos("", accountName).then((res) => {
+    getUserTableInfos(storeFilter ?? "", accountName).then((res) => {
       setTableLoading(false)
       if (res.status === "ok") {
         const data: UserTableInfo[] = res.data ?? []
@@ -613,7 +618,8 @@ export default function UsagePage() {
         toast.error(`${i18next.t("general:Failed to get")}: ${res.msg}`)
       }
     }).catch(() => setTableLoading(false))
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeFilter])
 
   const fetchProviderAndHeatmap = useCallback((owner: string) => {
     getUsageProviders(owner).then((res) => {
@@ -625,26 +631,31 @@ export default function UsagePage() {
   }, [])
 
   useEffect(() => {
-    if (!account || initialized.current) return
-    initialized.current = true
-
+    if (!account) return
     const accountName = account.name
     const owner = account.owner ?? "admin"
 
-    getUsers(accountName, "").then((res) => {
-      if (res.status === "ok") {
-        const userList: string[] = res.data ?? []
-        setUsers(userList)
-        const initUser = isAdmin ? "All" : (userList[0] ?? "All")
-        setSelectedUser(initUser)
-        fetchAllUsageData(initUser)
-        fetchTableInfo(initUser, accountName)
-        fetchProviderAndHeatmap(owner)
-      } else {
-        toast.error(`${i18next.t("general:Failed to get")}: ${res.msg}`)
-      }
-    })
-  }, [account, isAdmin, fetchAllUsageData, fetchTableInfo, fetchProviderAndHeatmap])
+    if (!initialized.current) {
+      initialized.current = true
+      getUsers(accountName, "").then((res) => {
+        if (res.status === "ok") {
+          const userList: string[] = res.data ?? []
+          setUsers(userList)
+          const initUser = isAdmin ? "All" : (userList[0] ?? "All")
+          setSelectedUser(initUser)
+          fetchAllUsageData(initUser)
+          fetchTableInfo(initUser, accountName)
+        } else {
+          toast.error(`${i18next.t("general:Failed to get")}: ${res.msg}`)
+        }
+      })
+      fetchProviderAndHeatmap(owner)
+    } else {
+      fetchAllUsageData(selectedUser)
+      fetchTableInfo(selectedUser, accountName)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account, storeFilter])
 
   function handleUserChange(value: string) {
     setSelectedUser(value)

@@ -24,6 +24,8 @@ import type { Store } from "~/backend/StoreBackend"
 import { useMessageStream } from "~/hooks/useMessageStream"
 import { useChatMessageHandlers } from "~/hooks/useChatMessageHandlers"
 import { useTts } from "~/hooks/useTts"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
+import { useDeclareStoreFilter } from "~/context/StoreFilterContext"
 
 type UploadedFile = {
   uid: number
@@ -33,6 +35,7 @@ type UploadedFile = {
 }
 
 export default function ChatPage() {
+  useDeclareStoreFilter(true)
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { chatName: chatNameParam, storeName: storeNameParam } = useParams<{
@@ -40,6 +43,14 @@ export default function ChatPage() {
     storeName?: string
   }>()
   const { account } = useAccount()
+  const storeFilter = useStoreFilter()
+
+  useEffect(() => {
+    if (storeNameParam) {
+      try { localStorage.setItem("store", storeNameParam) } catch {}
+      window.dispatchEvent(new Event("globalStoreChanged"))
+    }
+  }, [storeNameParam])
 
   // State
   const [chats, setChats] = useState<Chat[]>([])
@@ -54,7 +65,7 @@ export default function ChatPage() {
     try { return JSON.parse(localStorage.getItem("chatMenuCollapsed") || "false") } catch { return false }
   })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [draftStoreName, setDraftStoreName] = useState<string | undefined>(storeNameParam)
+  const [draftStoreName, setDraftStoreName] = useState<string | undefined>(storeFilter)
 
   // Input state (lifted up from ChatBox)
   const [inputValue, setInputValue] = useState("")
@@ -85,7 +96,7 @@ export default function ChatPage() {
   }
 
   function generateChatUrl(cName?: string, sName?: string, owner = "admin"): string {
-    const effectiveSName = sName || storeNameParam
+    const effectiveSName = sName || storeNameParam || storeFilter
     if (!effectiveSName) {
       return cName ? `/chat/${cName}` : "/chat"
     }
@@ -194,8 +205,8 @@ export default function ChatPage() {
     const shouldShowPageLoading = !chatsLoadedRef.current
     if (shouldShowPageLoading) setLoading(true)
 
-    const storeName = storeNameParam || ""
-    getChats(account.name, storeName, -1, -1, "user", account.name).then((res) => {
+    const effectiveStore = (storeNameParam || storeFilter) ?? ""
+    getChats(account.name, effectiveStore, -1, -1, "user", account.name).then((res) => {
       if (res.status !== "ok") {
         chatsLoadedRef.current = true
         setLoading(false)
@@ -211,7 +222,7 @@ export default function ChatPage() {
         latestMessageChatRef.current = ""
         setChat(undefined)
         setMessages([])
-        setDraftStoreName(storeNameParam)
+        setDraftStoreName(storeNameParam || storeFilter)
         menuRef.current?.clearSelectedKey()
         fetchStores()
         return
@@ -222,9 +233,9 @@ export default function ChatPage() {
         latestMessageChatRef.current = ""
         setChat(undefined)
         setMessages([])
-        setDraftStoreName(storeNameParam)
+        setDraftStoreName(storeNameParam || storeFilter)
         menuRef.current?.clearSelectedKey()
-        navigate(generateChatUrl(undefined, storeNameParam), { replace: true })
+        navigate(generateChatUrl(undefined, storeNameParam || storeFilter), { replace: true })
         fetchStores()
         return
       }
@@ -234,7 +245,7 @@ export default function ChatPage() {
       loadMessages(targetChat)
       fetchStores()
     })
-  }, [account?.name, chatNameParam, storeNameParam])
+  }, [account?.name, chatNameParam, storeNameParam, storeFilter])
 
   useEffect(() => {
     fetchChats()
@@ -271,7 +282,7 @@ export default function ChatPage() {
       name: `message_${randomName}`,
       createdTime: new Date().toISOString(),
       organization: account.owner,
-      store: chat?.store || draftStoreName || storeNameParam || defaultStore?.name || "",
+      store: chat?.store || draftStoreName || storeNameParam || storeFilter || defaultStore?.name || "",
       user: account.name,
       chat: chat?.name,
       replyTo: "",
@@ -300,7 +311,7 @@ export default function ChatPage() {
       navigate(generateChatUrl(returnedChat.name, returnedChat.store), { replace: true })
 
       // Refresh chat list
-      getChats(account.name, storeNameParam || "", -1, -1, "user", account.name).then((r) => {
+      getChats(account.name, (storeNameParam || storeFilter) ?? "", -1, -1, "user", account.name).then((r) => {
         if (r.status === "ok") {
           setChats(r.data || [])
           menuRef.current?.setSelectedKeyToChat(r.data || [], returnedChat.name)
@@ -371,7 +382,7 @@ export default function ChatPage() {
   }
 
   function handleAddChat(store?: Store) {
-    const sName = store?.name || storeNameParam || ""
+    const sName = store?.name || storeNameParam || storeFilter || ""
     latestMessageChatRef.current = ""
     setChat(undefined)
     setMessages([])
@@ -446,7 +457,7 @@ export default function ChatPage() {
       onDeleteChat={handleDeleteChat}
       onUpdateChatName={handleUpdateChatName}
       stores={stores}
-      currentStoreName={storeNameParam}
+      currentStoreName={storeNameParam || storeFilter}
     />
   )
 

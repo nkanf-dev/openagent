@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
 import { EditIcon, Loader2Icon, PlusIcon, SearchIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react"
 import { toast } from "sonner"
 import i18next from "i18next"
@@ -58,6 +59,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip"
+import { useDeclareStoreFilter } from "~/context/StoreFilterContext"
 
 export function meta() {
   return [{ title: "Vectors — OpenAgent" }]
@@ -73,7 +75,7 @@ function newVector(): Vector {
     name: `vector_${rand}`,
     createdTime: new Date().toISOString(),
     displayName: `New Vector - ${rand}`,
-    store: "store-built-in",
+    store: "",
     file: "/aaa/openagent.txt",
     text: "The text of vector",
     data: [0.1, 0.2, 0.3],
@@ -87,7 +89,9 @@ function getShortText(text: string, maxLen: number): string {
 }
 
 export default function VectorListPage() {
+  useDeclareStoreFilter(true)
   const navigate = useNavigate()
+  const storeFilter = useStoreFilter()
   const [vectors, setVectors] = useState<Vector[]>([])
   const [pagination, setPagination] = useState<Pagination>({ current: 1, pageSize: 10, total: 0 })
   const [loading, setLoading] = useState(false)
@@ -116,7 +120,7 @@ export default function VectorListPage() {
       const field = params.field ?? searchField
       const value = params.value ?? searchValue
       setLoading(true)
-      getVectors("admin", "", String(current), String(pageSize), field, value, sf, so)
+      getVectors("admin", storeFilter ?? "", String(current), String(pageSize), field, value, sf, so)
         .then((res) => {
           if (res.status === "ok") {
             setVectors(res.data ?? [])
@@ -132,16 +136,16 @@ export default function VectorListPage() {
         .catch((err: Error) => toast.error(err.message))
         .finally(() => setLoading(false))
     },
-    [pagination, searchField, searchValue, sortField, sortOrder]
+    [pagination, searchField, searchValue, sortField, sortOrder, storeFilter]
   )
 
   useEffect(() => {
     fetchVectors({ current: 1 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [storeFilter])
 
   function handleAdd() {
-    const v = newVector()
+    const v = { ...newVector(), store: storeFilter || "store-built-in" }
     addVector(v)
       .then((res) => {
         if (res.status === "ok") {

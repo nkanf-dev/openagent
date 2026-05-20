@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
 import { DownloadIcon, EditIcon, Loader2Icon, PlusIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 import i18next from "i18next"
@@ -47,6 +48,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip"
+import { useDeclareStoreFilter } from "~/context/StoreFilterContext"
 
 export function meta() {
   return [{ title: "Messages - OpenAgent" }]
@@ -122,9 +124,11 @@ function LongTextCell({ text }: { text?: string | null }) {
 }
 
 export default function MessageListPage() {
+  useDeclareStoreFilter(true)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { account } = useAccount()
+  const storeFilter = useStoreFilter()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [pagination, setPagination] = useState<Pagination>({ current: 1, pageSize: 10, total: 0 })
@@ -142,9 +146,6 @@ export default function MessageListPage() {
   const isAdmin = isLocalAdminUser(account)
   const isRealAdmin = account?.name === "admin"
 
-  const storeParam = searchParams.get("store") || ""
-  const storeForApi = storeParam && account ? `${account.owner}/${storeParam}` : ""
-
   const fetchMessages = useCallback(
     (params: {
       current?: number
@@ -161,7 +162,7 @@ export default function MessageListPage() {
       const field = params.field ?? searchField
       const value = params.value ?? searchValue
       setLoading(true)
-      getGlobalMessages(current, pageSize, field, value, sf, so, storeForApi)
+      getGlobalMessages(current, pageSize, field, value, sf, so, storeFilter ?? "")
         .then((res) => {
           setLoading(false)
           if (res.status === "ok") {
@@ -182,7 +183,7 @@ export default function MessageListPage() {
         })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pagination.current, pagination.pageSize, sortField, sortOrder, searchField, searchValue, storeForApi]
+    [pagination.current, pagination.pageSize, sortField, sortOrder, searchField, searchValue, storeFilter]
   )
 
   useEffect(() => {
@@ -196,7 +197,7 @@ export default function MessageListPage() {
       fetchMessages({ current: 1 })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.name])
+  }, [account?.name, storeFilter])
 
   useEffect(() => {
     getProviders("admin", "", "", "10000", "", "", "", "").then((res) => {
@@ -224,7 +225,7 @@ export default function MessageListPage() {
       tokenCount: 0,
       textTokenCount: 0,
       price: 0,
-      store: storeForApi,
+      store: storeFilter ?? "",
     }
     addMessage(msg)
       .then((res) => {
@@ -287,7 +288,7 @@ export default function MessageListPage() {
       const all: Message[] = []
       let page = 1
       while (all.length < total) {
-        const res = await getGlobalMessages(page, pageSize, searchField, searchValue, sortField, sortOrder, storeForApi)
+        const res = await getGlobalMessages(page, pageSize, searchField, searchValue, sortField, sortOrder, storeFilter ?? "")
         if (res.status !== "ok") {
           toast.error(res.msg)
           return

@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
 import {
   EditIcon,
   Loader2Icon,
@@ -68,6 +69,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip"
+import { useDeclareStoreFilter } from "~/context/StoreFilterContext"
 
 export function meta() {
   return [{ title: "Files — OpenAgent" }]
@@ -86,8 +88,10 @@ function getFormattedSize(size: number | undefined): string {
 type SearchField = "store" | "name" | "filename" | "storageProvider" | "status" | "errorText"
 
 export default function FileListPage() {
+  useDeclareStoreFilter(true)
   const navigate = useNavigate()
   const { account } = useAccount()
+  const storeFilter = useStoreFilter()
   const isAdmin = isLocalAdminUser(account)
 
   const [files, setFiles] = useState<FileItem[]>([])
@@ -104,14 +108,9 @@ export default function FileListPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    fetchFiles()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function fetchFiles() {
+  const fetchFiles = useCallback(() => {
     setLoading(true)
-    getFiles("admin")
+    getFiles("admin", storeFilter ?? "")
       .then((res) => {
         if (res.status === "ok") {
           const data: FileItem[] = res.data ?? []
@@ -125,7 +124,11 @@ export default function FileListPage() {
       })
       .catch((err: Error) => toast.error(err.message))
       .finally(() => setLoading(false))
-  }
+  }, [storeFilter])
+
+  useEffect(() => {
+    fetchFiles()
+  }, [fetchFiles])
 
   function handleSearch() {
     if (!searchValue.trim()) {
@@ -198,7 +201,8 @@ export default function FileListPage() {
     if (!file) return
     e.target.value = ""
     setUploading(true)
-    uploadFile("admin/store-built-in", file)
+    const storeName = storeFilter || "store-built-in"
+    uploadFile(`admin/${storeName}`, file)
       .then((res) => {
         if (res.status === "ok") {
           toast.success(i18next.t("general:Successfully uploaded"))

@@ -200,6 +200,7 @@ export default function StoreListPage() {
       .then((res) => {
         if (res.status === "ok") {
           toast.success(i18next.t("general:Successfully added"))
+          window.dispatchEvent(new Event("storesChanged"))
           navigate(`/stores/${s.owner}/${s.name}`)
         } else {
           toast.error(`${i18next.t("general:Failed to add")}: ${res.msg}`)
@@ -213,6 +214,7 @@ export default function StoreListPage() {
       .then((res) => {
         if (res.status === "ok") {
           toast.success(i18next.t("general:Successfully deleted"))
+          window.dispatchEvent(new Event("storesChanged"))
           setStores((prev) => prev.filter((s) => s.name !== store.name))
           setPagination((p) => ({ ...p, total: Math.max(0, p.total - 1) }))
         } else {

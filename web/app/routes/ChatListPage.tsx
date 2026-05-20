@@ -16,6 +16,7 @@ import {
 import { getProviders, getProviderLogoUrl, type Provider } from "~/backend/ProviderBackend"
 import { getChatMessages } from "~/backend/MessageBackend"
 import { useAccount } from "~/context/AccountContext"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
 import { getAuthConfig } from "~/lib/AuthConfig"
 import {
   AlertDialog,
@@ -52,6 +53,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip"
+import { useDeclareStoreFilter } from "~/context/StoreFilterContext"
 
 export function meta() {
   return [{ title: "Chats - OpenAgent" }]
@@ -132,8 +134,10 @@ function ChatMessagesPreview({ messages }: { messages: Array<{ author: string; t
 }
 
 export default function ChatListPage() {
+  useDeclareStoreFilter(true)
   const navigate = useNavigate()
   const { account } = useAccount()
+  const storeFilter = useStoreFilter()
   const [chats, setChats] = useState<Chat[]>([])
   const [pagination, setPagination] = useState<Pagination>({ current: 1, pageSize: 20, total: 0 })
   const [loading, setLoading] = useState(false)
@@ -174,7 +178,7 @@ export default function ChatListPage() {
       const field = params.field ?? searchField
       const value = params.value ?? searchValue
       setLoading(true)
-      getGlobalChats(current, pageSize, field, value, sf, so, "")
+      getGlobalChats(current, pageSize, field, value, sf, so, storeFilter ?? "")
         .then((res) => {
           setLoading(false)
           if (res.status === "ok") {
@@ -205,7 +209,7 @@ export default function ChatListPage() {
         })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [account?.name, pagination.current, pagination.pageSize, sortField, sortOrder, searchField, searchValue]
+    [account?.name, pagination.current, pagination.pageSize, sortField, sortOrder, searchField, searchValue, storeFilter]
   )
 
   function fetchMessages(chatName: string) {
@@ -221,7 +225,7 @@ export default function ChatListPage() {
       fetchChats({ current: 1 })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.name])
+  }, [account?.name, storeFilter])
 
   useEffect(() => {
     getProviders("admin", "", "", "10000", "", "", "", "").then((res) => {
@@ -235,7 +239,7 @@ export default function ChatListPage() {
 
   function handleAdd() {
     if (!account) return
-    const chat = newChat(account)
+    const chat = { ...newChat(account), store: storeFilter ?? "" }
     addChat(chat)
       .then((res) => {
         if (res.status === "ok") {
@@ -304,7 +308,7 @@ export default function ChatListPage() {
       const all: Chat[] = []
       let page = 1
       while (all.length < total) {
-        const res = await getGlobalChats(page, pageSize, searchField, searchValue, sortField, sortOrder, "")
+        const res = await getGlobalChats(page, pageSize, searchField, searchValue, sortField, sortOrder, storeFilter ?? "")
         if (res.status !== "ok") {
           toast.error(res.msg)
           return

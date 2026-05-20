@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"
+import { HeaderStoreSelect } from "~/components/layout/HeaderStoreSelect"
 import { Separator } from "~/components/ui/separator"
 import { SidebarTrigger } from "~/components/ui/sidebar"
 import { useTheme } from "~/hooks/useTheme"
@@ -170,6 +171,8 @@ export function AppHeader({ account, onSignOut }: AppHeaderProps) {
 
       {/* Right side */}
       <div className="ml-auto flex items-center gap-1">
+        <HeaderStoreSelect className="hidden h-8 w-40 md:flex" />
+
         {/* Language switcher */}
         <div onMouseEnter={langDropdown.onMouseEnter} onMouseLeave={langDropdown.onMouseLeave}>
           <DropdownMenu open={langDropdown.open} onOpenChange={langDropdown.setOpen}>

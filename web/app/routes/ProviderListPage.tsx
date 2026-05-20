@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router"
+import { useStoreFilter } from "~/hooks/useStoreFilter"
 import { EditIcon, Loader2Icon, PlusIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 import i18next from "i18next"
@@ -52,6 +53,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip"
+import { useDeclareStoreFilter } from "~/context/StoreFilterContext"
 
 export function meta() {
   return [{ title: "Providers - OpenAgent" }]
@@ -143,8 +145,10 @@ function ProviderLogoCell({ provider }: { provider: Provider }) {
 }
 
 export default function ProviderListPage() {
+  useDeclareStoreFilter(true)
   const navigate = useNavigate()
   const { account } = useAccount()
+  const storeFilter = useStoreFilter()
   const [providers, setProviders] = useState<Provider[]>([])
   const [pagination, setPagination] = useState<Pagination>({ current: 1, pageSize: 10, total: 0 })
   const [loading, setLoading] = useState(false)
@@ -174,7 +178,7 @@ export default function ProviderListPage() {
       const field = params.field ?? searchField
       const value = params.value ?? searchValue
       setLoading(true)
-      getProviders(account?.name || "admin", "", String(current), String(pageSize), field, value, sf, so)
+      getProviders(account?.name || "admin", storeFilter ?? "", String(current), String(pageSize), field, value, sf, so)
         .then((res) => {
           setLoading(false)
           if (res.status === "ok") {
@@ -194,13 +198,14 @@ export default function ProviderListPage() {
           toast.error(err.message)
         })
     },
-    [account?.name, pagination, searchField, searchValue, sortField, sortOrder]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [account?.name, pagination, searchField, searchValue, sortField, sortOrder, storeFilter]
   )
 
   useEffect(() => {
     fetchProviders({ current: 1 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.name])
+  }, [account?.name, storeFilter])
 
   function handleAdd() {
     const provider = newProvider(account?.name || "admin")

@@ -3,6 +3,7 @@ import { Navigate, Outlet } from "react-router"
 import { useTranslation } from "react-i18next"
 
 import { AccountProvider, useAccount } from "~/context/AccountContext"
+import { StoreFilterProvider } from "~/context/StoreFilterContext"
 import { AppFooter } from "~/components/layout/AppFooter"
 import { AppHeader } from "~/components/layout/AppHeader"
 import { AppSidebar } from "~/components/layout/AppSidebar"
@@ -53,7 +54,9 @@ function LayoutInner() {
 export default function AppLayout() {
   return (
     <AccountProvider>
-      <LayoutInner />
+      <StoreFilterProvider>
+        <LayoutInner />
+      </StoreFilterProvider>
     </AccountProvider>
   )
 }
