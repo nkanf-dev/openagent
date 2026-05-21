@@ -176,7 +176,7 @@ export default function StoreListPage() {
       .then((res) => {
         if (res.status === "ok") {
           toast.success(i18next.t("general:Successfully added"))
-          navigate(`/stores/${s.owner}/${s.name}`)
+          navigate(`/stores/${s.owner}/${s.name}`, { state: { isNew: true } })
         } else {
           toast.error(`${i18next.t("general:Failed to add")}: ${res.msg}`)
         }

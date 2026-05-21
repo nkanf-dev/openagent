@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNavigate, useParams } from "react-router"
+import { useLocation, useNavigate, useParams } from "react-router"
 import { Loader2Icon } from "lucide-react"
 import { toast } from "sonner"
 import i18next from "i18next"
@@ -62,6 +62,7 @@ export function meta() {
 export default function StoreEditPage() {
   const { owner, storeName } = useParams<{ owner: string; storeName: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { account } = useAccount()
 
   const [store, setStore] = useState<Store | null>(null)
@@ -74,7 +75,7 @@ export default function StoreEditPage() {
   const [mcpServers, setMcpServers] = useState<Array<{ name: string; displayName?: string }>>([])
   const [skills, setSkills] = useState<Array<{ name: string; displayName?: string; state?: string }>>([])
   const [tools, setTools] = useState<Array<{ name: string; type?: string }>>([])
-  const [isNewStore, setIsNewStore] = useState(false)
+  const [isNewStore, setIsNewStore] = useState((location.state as { isNew?: boolean })?.isNew ?? false)
   const [saving, setSaving] = useState(false)
   const [claimDialogOpen, setClaimDialogOpen] = useState(false)
 
