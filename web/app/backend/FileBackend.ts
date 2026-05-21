@@ -70,3 +70,23 @@ export function uploadFile(storeId: string, file: globalThis.File): Promise<any>
     }
   })
 }
+
+export function updateFileContent(owner: string, name: string, file: globalThis.File): Promise<any> {
+  const formData = new FormData()
+  formData.append("file", file)
+  return fetch(`${ServerUrl}/api/update-file-content?id=${encodeURIComponent(owner + "/" + name)}`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Accept-Language": getAcceptLanguage(),
+    },
+    body: formData,
+  }).then(async (res) => {
+    const text = await res.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      return { status: "error", msg: text }
+    }
+  })
+}

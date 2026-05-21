@@ -219,6 +219,39 @@ func (c *ApiController) UploadFile() {
 	c.ResponseOk(res)
 }
 
+// UpdateFileContent
+// @Title UpdateFileContent
+// @Tag File API
+// @Description update file content by uploading a new file to replace the existing one
+// @Param id query string true "The id (owner/name) of the file"
+// @Param file formData file true "The new file content"
+// @Success 200 {object} controllers.Response The Response object
+// @router /update-file-content [post]
+func (c *ApiController) UpdateFileContent() {
+	_, ok := c.RequireSignedIn()
+	if !ok {
+		return
+	}
+
+	id := c.Input().Get("id")
+	owner, name := util.GetOwnerAndNameFromIdNoCheck(id)
+
+	fileData, _, err := c.GetFile("file")
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	defer fileData.Close()
+
+	res, err := object.UpdateFileContent(owner, name, fileData, c.GetAcceptLanguage())
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	c.ResponseOk(res)
+}
+
 // RefreshFileVectors
 // @Title RefreshFileVectors
 // @Tag File API

@@ -68,6 +68,7 @@ export default [
 
     // Files
     route("files", "routes/FileListPage.tsx"),
+    route("files/:fileName/edit", "routes/FileEditPage.tsx"),
     route("files/:fileName", "routes/FileViewPage.tsx"),
 
     // Vectors

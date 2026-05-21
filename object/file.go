@@ -239,6 +239,66 @@ func UploadFileToStore(storeId string, userName string, filename string, fileDat
 	return true, nil
 }
 
+func UpdateFileContent(owner string, name string, fileData multipart.File, lang string) (bool, error) {
+	file, err := getFile(owner, name)
+	if err != nil {
+		return false, err
+	}
+	if file == nil {
+		return false, fmt.Errorf(i18n.Translate(lang, "object:The file: %s is not found"), name)
+	}
+
+	objectKey := file.getObjectKey()
+	if objectKey == "" {
+		return false, fmt.Errorf(i18n.Translate(lang, "object:The file: %s is not found"), name)
+	}
+
+	store, err := getStore(file.Owner, file.Store)
+	if err != nil {
+		return false, err
+	}
+	if store == nil {
+		return false, fmt.Errorf(i18n.Translate(lang, "account:The store: %s is not found"), file.Store)
+	}
+
+	storageProviderObj, err := store.GetStorageProviderObj(lang)
+	if err != nil {
+		return false, err
+	}
+
+	fileBuffer := bytes.NewBuffer(nil)
+	_, err = io.Copy(fileBuffer, fileData)
+	if err != nil {
+		return false, err
+	}
+
+	bs := fileBuffer.Bytes()
+	fileUrl, err := storageProviderObj.PutObject(owner, store.Name, objectKey, fileBuffer)
+	if err != nil {
+		return false, err
+	}
+
+	file.Size = int64(len(bs))
+	file.Url = fileUrl
+	file.TokenCount = 0
+	file.Status = FileStatusPending
+	file.ErrorText = ""
+
+	_, err = adapter.engine.ID(core.PK{owner, name}).AllCols().Update(file)
+	if err != nil {
+		return false, err
+	}
+
+	go func() {
+		_, vectorErr := AddVectorsForFile(store, file.Name, objectKey, fileUrl, lang)
+		if vectorErr != nil {
+			logs.Error("Failed to generate vectors for file %s: %v", objectKey, vectorErr)
+		}
+	}()
+
+	return true, nil
+}
+
 func generateFileId() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {

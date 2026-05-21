@@ -17,6 +17,7 @@ import { Link, useNavigate } from "react-router"
 import { useStoreFilter } from "~/hooks/useStoreFilter"
 import {
   EditIcon,
+  EyeIcon,
   Loader2Icon,
   MoreHorizontalIcon,
   RefreshCwIcon,
@@ -378,7 +379,7 @@ export default function FileListPage() {
                   </TableCell>
                   <TableCell>
                     <Link
-                      to={`/files/${encodeURIComponent(file.name)}`}
+                      to={`/files/${encodeURIComponent(file.name)}/edit`}
                       className="text-sm font-medium text-primary hover:underline"
                     >
                       {file.name}
@@ -422,10 +423,19 @@ export default function FileListPage() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7"
+                        title={i18next.t("general:Edit")}
+                        onClick={() => navigate(`/files/${encodeURIComponent(file.name)}/edit`)}
+                      >
+                        <EditIcon className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
                         title={i18next.t("general:View")}
                         onClick={() => navigate(`/files/${encodeURIComponent(file.name)}`)}
                       >
-                        <EditIcon className="h-3.5 w-3.5" />
+                        <EyeIcon className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
