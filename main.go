@@ -49,8 +49,8 @@ func main() {
 
 	object.InitDb()
 	object.InitSiteEndpoint()
-	if err := object.ResetGeneratingChats(); err != nil {
-		logs.Warning("Failed to reset generating chats during startup: %v", err)
+	if err := object.ResetChatStatus(); err != nil {
+		logs.Warning("Failed to reset chat status during startup: %v", err)
 	}
 	authz.InitEnforcer()
 	proxy.InitHttpClient()
