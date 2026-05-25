@@ -16,7 +16,6 @@ package model
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -69,7 +68,7 @@ func getLocalClientFromUrl(authToken string, url string) *openai.Client {
 	config := openai.DefaultConfig(authToken)
 	config.BaseURL = url
 
-	transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	transport := &http.Transport{}
 	httpClient := http.Client{Transport: transport}
 	config.HTTPClient = &httpClient
 
@@ -125,7 +124,7 @@ func (p *LocalModelProvider) ListModels() ([]string, error) {
 			models = append(models, m.Name)
 		}
 	} else {
-		return openaiCompatibleListModels(p.secretKey, url)
+		return openaiCompatibleListModels("local", p.secretKey, url)
 	}
 
 	return models, nil

@@ -96,5 +96,5 @@ func (p *StepFunModelProvider) QueryText(question string, writer io.Writer, hist
 }
 
 func (p *StepFunModelProvider) ListModels() ([]string, error) {
-	return openaiCompatibleListModels(p.apiKey, "https://api.stepfun.com/v1")
+	return openaiCompatibleListModels("stepfun", p.apiKey, "https://api.stepfun.com/v1")
 }

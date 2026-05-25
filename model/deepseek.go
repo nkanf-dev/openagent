@@ -102,5 +102,5 @@ func (p *DeepSeekProvider) QueryText(question string, writer io.Writer, history 
 }
 
 func (p *DeepSeekProvider) ListModels() ([]string, error) {
-	return openaiCompatibleListModels(p.apiKey, "https://api.deepseek.com/v1")
+	return openaiCompatibleListModels("deepseek", p.apiKey, "https://api.deepseek.com/v1")
 }

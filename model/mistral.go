@@ -116,5 +116,5 @@ func (c *MistralModelProvider) QueryText(question string, writer io.Writer, hist
 }
 
 func (c *MistralModelProvider) ListModels() ([]string, error) {
-	return openaiCompatibleListModels(c.secretKey, "https://api.mistral.ai/v1")
+	return openaiCompatibleListModels("mistral", c.secretKey, "https://api.mistral.ai/v1")
 }

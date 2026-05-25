@@ -65,11 +65,6 @@ func NewOpenAiModelProvider(subType string, secretKey string, endpoint string, t
 func CalculateOpenAIModelPrice(model string, modelResult *ModelResult, lang string) error {
 	var inputPricePerThousandTokens, outputPricePerThousandTokens float64
 
-	// If the model result already has pricing set (e.g. from provider config), use it.
-	if modelResult.TotalPrice > 0 {
-		return nil
-	}
-
 	switch {
 	// gpt 3.5 turbo model Support:
 	case strings.Contains(model, "gpt-3.5"):
@@ -313,44 +308,7 @@ func (p *OpenAiModelProvider) ListModels() ([]string, error) {
 	if url == "" {
 		url = "https://api.openai.com/v1"
 	}
-
-	if !strings.HasSuffix(url, "/") {
-		url += "/"
-	}
-	url += "models"
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return []string{}, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(p.secretKey))
-
-	resp, err := newListModelsHTTPClient().Do(req)
-	if err != nil {
-		return []string{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return []string{}, fmt.Errorf("openai: ListModels() error: status code %d", resp.StatusCode)
-	}
-
-	var result struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return []string{}, err
-	}
-
-	var models []string
-	for _, m := range result.Data {
-		models = append(models, m.ID)
-	}
-	return models, nil
+	return openaiCompatibleListModels("openai", p.secretKey, url)
 }
 
 func GetOpenAiClientFromToken(authToken string) openai.Client {

@@ -68,9 +68,9 @@ func unsupportedListModels(providerType string) ([]string, error) {
 	return []string{}, fmt.Errorf("%s: ListModels() is not implemented", providerType)
 }
 
-func openaiCompatibleListModels(secretKey string, url string) ([]string, error) {
+func openaiCompatibleListModels(providerType string, secretKey string, url string) ([]string, error) {
 	if url == "" {
-		return []string{}, fmt.Errorf("provider URL is empty")
+		return []string{}, fmt.Errorf("%s: ListModels() error: provider URL is empty", providerType)
 	}
 
 	if !strings.HasSuffix(url, "/") {
@@ -94,7 +94,7 @@ func openaiCompatibleListModels(secretKey string, url string) ([]string, error) 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return []string{}, fmt.Errorf("status code %d", resp.StatusCode)
+		return []string{}, fmt.Errorf("%s: ListModels() error: status code %d", providerType, resp.StatusCode)
 	}
 
 	var result struct {

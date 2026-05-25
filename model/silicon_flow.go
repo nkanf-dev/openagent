@@ -127,5 +127,5 @@ func (p *SiliconFlowProvider) QueryText(question string, writer io.Writer, histo
 }
 
 func (p *SiliconFlowProvider) ListModels() ([]string, error) {
-	return openaiCompatibleListModels(p.apiKey, "https://api.siliconflow.cn/v1")
+	return openaiCompatibleListModels("silicon flow", p.apiKey, "https://api.siliconflow.cn/v1")
 }

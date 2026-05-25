@@ -123,5 +123,5 @@ func (p *MoonshotModelProvider) QueryText(question string, writer io.Writer, his
 }
 
 func (p *MoonshotModelProvider) ListModels() ([]string, error) {
-	return openaiCompatibleListModels(p.secretKey, "https://api.moonshot.cn/v1")
+	return openaiCompatibleListModels("moonshot", p.secretKey, "https://api.moonshot.cn/v1")
 }

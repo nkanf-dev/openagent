@@ -201,6 +201,10 @@ func (c *ApiController) DeleteProvider() {
 // @Success 200 {array} string The Response object
 // @router /fetch-provider-models [post]
 func (c *ApiController) FetchProviderModels() {
+	if !c.RequireAdmin() {
+		return
+	}
+
 	var provider object.Provider
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &provider)
 	if err != nil {
