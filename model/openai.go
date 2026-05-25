@@ -64,6 +64,12 @@ func NewOpenAiModelProvider(subType string, secretKey string, endpoint string, t
 
 func CalculateOpenAIModelPrice(model string, modelResult *ModelResult, lang string) error {
 	var inputPricePerThousandTokens, outputPricePerThousandTokens float64
+
+	// If the model result already has pricing set (e.g. from provider config), use it.
+	if modelResult.TotalPrice > 0 {
+		return nil
+	}
+
 	switch {
 	// gpt 3.5 turbo model Support:
 	case strings.Contains(model, "gpt-3.5"):
@@ -221,9 +227,10 @@ func CalculateOpenAIModelPrice(model string, modelResult *ModelResult, lang stri
 		modelResult.Currency = "USD"
 		return nil
 	default:
-		// inputPricePerThousandTokens = 0
-		// outputPricePerThousandTokens = 0
-		return fmt.Errorf(i18n.Translate(lang, "embedding:calculatePrice() error: unknown model type: %s"), model)
+		// For unknown models, set price to 0 instead of returning error
+		inputPricePerThousandTokens = 0
+		outputPricePerThousandTokens = 0
+		modelResult.Currency = "USD"
 	}
 
 	inputPrice := getPrice(modelResult.PromptTokenCount, inputPricePerThousandTokens)
@@ -301,14 +308,61 @@ func (p *OpenAiModelProvider) GetPricing() string {
 	return getOpenAIModelPrice()
 }
 
+func (p *OpenAiModelProvider) ListModels() ([]string, error) {
+	url := p.endpoint
+	if url == "" {
+		url = "https://api.openai.com/v1"
+	}
+
+	if !strings.HasSuffix(url, "/") {
+		url += "/"
+	}
+	url += "models"
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return []string{}, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(p.secretKey))
+
+	resp, err := newListModelsHTTPClient().Do(req)
+	if err != nil {
+		return []string{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return []string{}, fmt.Errorf("openai: ListModels() error: status code %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return []string{}, err
+	}
+
+	var models []string
+	for _, m := range result.Data {
+		models = append(models, m.ID)
+	}
+	return models, nil
+}
+
 func GetOpenAiClientFromToken(authToken string) openai.Client {
 	return newOpenAiClient(authToken, "")
 }
 
 func newOpenAiClient(authToken, endpoint string) openai.Client {
 	opts := []option.RequestOption{
-		option.WithHTTPClient(proxy.ProxyHttpClient),
 		option.WithAPIKey(authToken),
+	}
+	if proxy.ProxyHttpClient != nil {
+		opts = append(opts, option.WithHTTPClient(proxy.ProxyHttpClient))
 	}
 	if endpoint != "" {
 		opts = append(opts, option.WithBaseURL(endpoint))
