@@ -392,6 +392,8 @@ class ProviderEditPage extends React.Component {
                     this.updateProviderField("subType", "qwen-long");
                   } else if (value === "Moonshot") {
                     this.updateProviderField("subType", "Moonshot-v1-8k");
+                  } else if (value === "Kimi Coding") {
+                    this.updateProviderField("subType", "kimi-for-coding");
                   } else if (value === "Amazon Bedrock") {
                     this.updateProviderField("subType", "Claude");
                   } else if (value === "Baichuan") {

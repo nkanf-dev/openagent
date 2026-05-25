@@ -261,6 +261,8 @@ func getContextLength(typ string) int {
 		} else {
 			return 4096
 		}
+	} else if strings.Contains(typ, "kimi-for-coding") {
+		return 262144
 	} else if strings.Contains(typ, "yi") {
 		return 16384
 	} else if strings.Contains(typ, "glm") {

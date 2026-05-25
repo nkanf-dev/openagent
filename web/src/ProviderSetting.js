@@ -110,6 +110,10 @@ export function getOtherProviderInfo() {
         logo: `${StaticBaseUrl}/img/social_moonshot.png`,
         url: "https://www.moonshot.cn/",
       },
+      "Kimi Coding": {
+        logo: `${StaticBaseUrl}/img/social_moonshot.png`,
+        url: "https://www.kimi.com/code/",
+      },
       "Amazon Bedrock": {
         logo: `${StaticBaseUrl}/img/social_aws.png`,
         url: "https://aws.amazon.com/bedrock/",
@@ -589,6 +593,7 @@ export function getProviderTypeOptions(category) {
         {id: "Azure", name: "Azure"},
         {id: "Cohere", name: "Cohere"},
         {id: "Moonshot", name: "Moonshot"},
+        {id: "Kimi Coding", name: "Kimi Coding"},
         {id: "Amazon Bedrock", name: "Amazon Bedrock"},
         {id: "Alibaba Cloud", name: "Alibaba Cloud"},
         {id: "Baichuan", name: "Baichuan"},
@@ -706,6 +711,10 @@ export function getTtsFlavorOptions(type, subType) {
 export function getModelSubTypeOptions(type) {
   if (type === "OpenAI" || type === "Azure" || type === "OpenAI Compatible") {
     return openaiModels;
+  } else if (type === "Kimi Coding") {
+    return [
+      {id: "kimi-for-coding", name: "kimi-for-coding"},
+    ];
   } else if (type === "Gemini") {
     return [
       // Gemini 3.1 series (Preview)
@@ -1339,7 +1348,7 @@ export function getProviderAzureApiVersionOptions() {
 }
 
 export function getQuickSetupModelTypes() {
-  return ["OpenAI", "Claude", "Gemini", "DeepSeek", "Grok", "Ollama", "OpenRouter", "Mistral", "Azure", "OpenAI Compatible", "Alibaba Cloud", "Moonshot", "Silicon Flow", "Volcano Engine", "Baidu Cloud", "Amazon Bedrock"];
+  return ["OpenAI", "Claude", "Gemini", "DeepSeek", "Grok", "Ollama", "OpenRouter", "Mistral", "Azure", "OpenAI Compatible", "Alibaba Cloud", "Moonshot", "Kimi Coding", "Silicon Flow", "Volcano Engine", "Baidu Cloud", "Amazon Bedrock"];
 }
 
 export function getModelProviderMetadata(type) {
@@ -1356,6 +1365,7 @@ export function getModelProviderMetadata(type) {
     "OpenAI Compatible": {desc: "Any compatible API", needsApiKey: true, needsUrl: true, needsClientId: false, needsRegion: false, defaultSubType: "", urlPlaceholder: "https://api.example.com/v1"},
     "Alibaba Cloud": {desc: "Qwen3, Qwen-Max...", needsApiKey: true, needsUrl: false, needsClientId: false, needsRegion: false, defaultSubType: "qwen3-235b-a22b"},
     "Moonshot": {desc: "Kimi K2, long-context models", needsApiKey: true, needsUrl: false, needsClientId: false, needsRegion: false, defaultSubType: "kimi-k2-0905-preview"},
+    "Kimi Coding": {desc: "Kimi coding endpoint", needsApiKey: true, needsUrl: false, needsClientId: false, needsRegion: false, defaultSubType: "kimi-for-coding"},
     "Silicon Flow": {desc: "DeepSeek, Qwen, and more", needsApiKey: true, needsUrl: false, needsClientId: false, needsRegion: false, defaultSubType: "deepseek-ai/DeepSeek-R1"},
     "Volcano Engine": {desc: "ByteDance AI platform", needsApiKey: true, needsUrl: false, needsClientId: false, needsRegion: false, defaultSubType: "doubao-seed-2-0-pro-260215"},
     "Baidu Cloud": {desc: "ERNIE Bot models", needsApiKey: true, needsUrl: false, needsClientId: false, needsRegion: false, defaultSubType: "ernie-5.0"},

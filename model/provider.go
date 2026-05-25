@@ -79,6 +79,8 @@ func GetModelProvider(typ string, subType string, clientId string, clientSecret 
 		p, err = NewCohereModelProvider(subType, clientSecret)
 	} else if typ == "Moonshot" {
 		p, err = NewMoonshotModelProvider(subType, clientSecret, temperature, topP)
+	} else if typ == "Kimi Coding" {
+		p, err = NewKimiCodingModelProvider(clientSecret, temperature, topP)
 	} else if typ == "Amazon Bedrock" {
 		p, err = NewAmazonBedrockModelProvider(subType, clientSecret, float64(temperature))
 	} else if typ == "Alibaba Cloud" {

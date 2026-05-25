@@ -44,6 +44,7 @@ type LocalModelProvider struct {
 	inputPricePerThousandTokens  float64
 	outputPricePerThousandTokens float64
 	currency                     string
+	requestHeaders               map[string]string
 }
 
 func NewLocalModelProvider(typ string, subType string, secretKey string, temperature float32, topP float32, frequencyPenalty float32, presencePenalty float32, providerUrl string, compatibleProvider string, inputPricePerThousandTokens float64, outputPricePerThousandTokens float64, Currency string) (*LocalModelProvider, error) {
@@ -70,6 +71,36 @@ func getLocalClientFromUrl(authToken string, url string) *openai.Client {
 
 	transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	httpClient := http.Client{Transport: transport}
+	config.HTTPClient = &httpClient
+
+	c := openai.NewClientWithConfig(config)
+	return c
+}
+
+type headerInjectingRoundTripper struct {
+	base    http.RoundTripper
+	headers map[string]string
+}
+
+func (t *headerInjectingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	clonedReq := req.Clone(req.Context())
+	for key, value := range t.headers {
+		clonedReq.Header.Set(key, value)
+	}
+	return t.base.RoundTrip(clonedReq)
+}
+
+func getLocalClientFromUrlWithHeaders(authToken string, url string, headers map[string]string) *openai.Client {
+	config := openai.DefaultConfig(authToken)
+	config.BaseURL = url
+
+	baseTransport := http.DefaultTransport
+	httpClient := http.Client{
+		Transport: &headerInjectingRoundTripper{
+			base:    baseTransport,
+			headers: headers,
+		},
+	}
 	config.HTTPClient = &httpClient
 
 	c := openai.NewClientWithConfig(config)
@@ -166,7 +197,11 @@ func (p *LocalModelProvider) QueryText(question string, writer io.Writer, histor
 	var flushData interface{} // Can be either flushData or flushDataThink
 
 	if p.typ == "Local" {
-		client = getLocalClientFromUrl(p.secretKey, p.providerUrl)
+		if len(p.requestHeaders) > 0 {
+			client = getLocalClientFromUrlWithHeaders(p.secretKey, p.providerUrl, p.requestHeaders)
+		} else {
+			client = getLocalClientFromUrl(p.secretKey, p.providerUrl)
+		}
 		flushData = flushDataThink
 	} else if p.typ == "Azure" {
 		client = getAzureClientFromToken(p.deploymentName, p.secretKey, p.providerUrl, p.apiVersion)
@@ -175,10 +210,18 @@ func (p *LocalModelProvider) QueryText(question string, writer io.Writer, histor
 		client = getGitHubClientFromToken(p.secretKey, p.providerUrl)
 		flushData = flushDataOpenai
 	} else if p.typ == "Custom" {
-		client = getLocalClientFromUrl(p.secretKey, p.providerUrl)
+		if len(p.requestHeaders) > 0 {
+			client = getLocalClientFromUrlWithHeaders(p.secretKey, p.providerUrl, p.requestHeaders)
+		} else {
+			client = getLocalClientFromUrl(p.secretKey, p.providerUrl)
+		}
 		flushData = flushDataOpenai
 	} else if p.typ == "Custom-think" {
-		client = getLocalClientFromUrl(p.secretKey, p.providerUrl)
+		if len(p.requestHeaders) > 0 {
+			client = getLocalClientFromUrlWithHeaders(p.secretKey, p.providerUrl, p.requestHeaders)
+		} else {
+			client = getLocalClientFromUrl(p.secretKey, p.providerUrl)
+		}
 		flushData = flushDataThink
 	}
 
