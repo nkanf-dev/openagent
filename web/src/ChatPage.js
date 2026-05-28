@@ -108,8 +108,20 @@ class ChatPage extends BaseListPage {
 
             const status = res.data;
             const isViewing = this.state.chat?.name === chat.name;
+            const generationFinished = chat.isGenerating && !status.isGenerating;
 
-            if (chat.isGenerating && !status.isGenerating && isViewing && status.isUnread) {
+            if (generationFinished && isViewing && this.state.messageLoading) {
+              const lastMessage = this.state.messages?.[this.state.messages.length - 1];
+              if (lastMessage?.author === "AI") {
+                MessageBackend.closeMessageEventSource(lastMessage.owner, lastMessage.name, false);
+              }
+              this.setState({
+                messageLoading: false,
+              });
+              this.getMessages({...chat, ...status}, {skipPendingAnswer: true});
+            }
+
+            if (generationFinished && isViewing && status.isUnread) {
               this.markChatRead({...chat, ...status});
               return;
             }
@@ -417,7 +429,7 @@ class ChatPage extends BaseListPage {
       });
   }
 
-  getMessages(chat) {
+  getMessages(chat, options = {}) {
     this.setState({
       messageError: false,
     });
@@ -435,6 +447,13 @@ class ChatPage extends BaseListPage {
         if (res.data.length > 0) {
           const lastMessage = res.data[res.data.length - 1];
           if (lastMessage.author === "AI" && lastMessage.replyTo !== "" && lastMessage.text === "") {
+            if (options.skipPendingAnswer) {
+              this.setState({
+                messageLoading: false,
+                messageError: lastMessage.errorText !== "",
+              });
+              return;
+            }
             let text = "";
             let reasonText = "";
             this.setState({
