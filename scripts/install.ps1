@@ -68,6 +68,11 @@ if ($UserPath -notlike "*$InstallDir*") {
 Write-Info ''
 Write-Info "openagent $Version installed to $InstallDir"
 Write-Info ''
+Write-Info 'OpenAgent will start at http://localhost:14000/'
+Write-Info 'Default local admin login: username admin, password 123'
+Write-Info 'Please change the default password after signing in.'
+Write-Info 'API docs: http://localhost:14000/swagger/index.html'
+Write-Info ''
 Write-Info "For more information visit https://github.com/$Repo"
 Write-Info ''
 Write-Info 'Starting openagent...'

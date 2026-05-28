@@ -64,6 +64,9 @@ func StaticFilter(ctx *context.Context) {
 	if strings.HasPrefix(urlPath, "/api/") {
 		return
 	}
+	if strings.HasPrefix(urlPath, "/swagger") {
+		return
+	}
 
 	if strings.HasPrefix(urlPath, "/storage") {
 		ctx.Output.Header(headerAllowOrigin, "*")

@@ -137,5 +137,14 @@ func main() {
 		go util.OpenBrowser(fmt.Sprintf("http://localhost:%v/", port))
 	}
 
+	fmt.Printf("\nOpenAgent is starting at http://localhost:%v/\n", port)
+	if object.IsAdminUsingDefaultPassword() {
+		fmt.Println("Default local admin login: username admin, password 123")
+		fmt.Println("Please change the default password after signing in.")
+	}
+	fmt.Println("API docs: http://localhost:" + fmt.Sprint(port) + "/swagger/index.html")
+	fmt.Println("Press Ctrl+C to stop OpenAgent.")
+	fmt.Println()
+
 	beego.Run(fmt.Sprintf(":%v", port))
 }

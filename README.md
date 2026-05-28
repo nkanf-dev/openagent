@@ -60,7 +60,7 @@ irm https://raw.githubusercontent.com/the-open-agent/openagent/master/scripts/in
 
 > **Windows runs natively** — no WSL, no Docker required.
 
-Open [http://localhost:14000](http://localhost:14000) and you're in.
+Open [http://localhost:14000](http://localhost:14000). The initial local admin login is `admin` / `123`; change the default password after signing in.
 
 > Optional env vars: `OPENAGENT_VERSION`, `INSTALL_DIR`, `BIN_DIR`
 
