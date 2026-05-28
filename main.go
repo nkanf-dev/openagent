@@ -137,5 +137,14 @@ func main() {
 		go util.OpenBrowser(fmt.Sprintf("http://localhost:%v/", port))
 	}
 
+	if object.IsAdminUsingDefaultPassword() {
+		fmt.Println()
+		fmt.Println("OpenAgent default admin account")
+		fmt.Println("  Username: admin")
+		fmt.Println("  Password: 123")
+		fmt.Println("Please change the default password after signing in.")
+		fmt.Println()
+	}
+
 	beego.Run(fmt.Sprintf(":%v", port))
 }
