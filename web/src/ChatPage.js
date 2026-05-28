@@ -496,7 +496,7 @@ class ChatPage extends BaseListPage {
                 }
               });
               this.setState({
-                messages: res.data,
+                messages: [...res.data],
                 messageError: false,
               });
             }, (data) => {
@@ -524,7 +524,7 @@ class ChatPage extends BaseListPage {
               res.data[res.data.length - 1] = lastMessage2;
 
               this.setState({
-                messages: res.data,
+                messages: [...res.data],
               });
             }, (data) => {
               // onTool callback (handles both tool-start and tool-complete events)
@@ -571,7 +571,7 @@ class ChatPage extends BaseListPage {
               res.data[res.data.length - 1] = lastMessage2;
 
               this.setState({
-                messages: res.data,
+                messages: [...res.data],
               });
             }, (data) => {
               // onSearch callback
@@ -586,7 +586,7 @@ class ChatPage extends BaseListPage {
               res.data[res.data.length - 1] = lastMessage2;
 
               this.setState({
-                messages: res.data,
+                messages: [...res.data],
               });
             }, (data) => {
               if (!chat || (this.state.chat?.name !== chat.name)) {
@@ -600,7 +600,7 @@ class ChatPage extends BaseListPage {
               res.data[res.data.length - 1] = lastMessage2;
 
               this.setState({
-                messages: res.data,
+                messages: [...res.data],
               });
             }, (error) => {
               this.updateChatStatus(chat.name, {isGenerating: false});
@@ -618,7 +618,7 @@ class ChatPage extends BaseListPage {
               });
 
               this.setState({
-                messages: res.data,
+                messages: [...res.data],
                 messageLoading: false,
                 messageError: true,
               });
@@ -686,7 +686,7 @@ class ChatPage extends BaseListPage {
               });
 
               this.setState({
-                messages: res.data,
+                messages: [...res.data],
                 messageLoading: false,
                 messageError: false,
               });
@@ -704,7 +704,7 @@ class ChatPage extends BaseListPage {
               const lastMessage2 = Setting.deepCopy(currentMessage);
               lastMessage2.hintText = infoText;
               res.data[res.data.length - 1] = lastMessage2;
-              this.setState({messages: res.data});
+              this.setState({messages: [...res.data]});
             }, (update) => {
               if (!chat || update?.name !== chat.name || !update.displayName) {
                 return;
