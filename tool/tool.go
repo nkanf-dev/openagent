@@ -27,6 +27,7 @@ type Tool interface {
 
 // Config contains the fields needed to construct builtin tools.
 type Config struct {
+	Owner        string
 	Type         string
 	SubType      string
 	ProviderUrl  string

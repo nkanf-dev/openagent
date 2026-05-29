@@ -29,8 +29,16 @@ import (
 	"github.com/the-open-agent/openagent/mcp"
 	"github.com/the-open-agent/openagent/model"
 	"github.com/the-open-agent/openagent/object"
+	"github.com/the-open-agent/openagent/tool"
 	"github.com/the-open-agent/openagent/util"
 )
+
+const browserUseMemoryCloseoutBias = `## Browser Use Memory Bias
+- If any browser_use tool is used during this task, before the final answer you MUST make a web memory decision.
+- If reusable site knowledge emerged, save or update it with browser_use_save_web_skill.
+- If a repeatable successful workflow emerged, review the trace if helpful, then save or update it with browser_use_save_web_action using an explicit parameterized steps array (open/click/type/press). Do not save action steps by referencing trace step ids.
+- Do not wait for the user to explicitly ask to save site memory or actions.
+- It is okay to skip saving only when the workflow is one-off, failed, uncertain, unstable, or the user explicitly asked not to save.`
 
 // GetMessageAnswer
 // @Title GetMessageAnswer
@@ -61,6 +69,26 @@ func (c *ApiController) GetMessageAnswer() {
 
 	job := messageAnswerJobs.getOrStart(id, c.Ctx.Request.Host, c.GetAcceptLanguage(), signedIn)
 	streamMessageAnswerJob(c.Ctx.ResponseWriter, c.Ctx.Request, job)
+}
+
+func storeUsesBrowserUseTool(store *object.Store) bool {
+	if store == nil || len(store.Tools) == 0 {
+		return false
+	}
+	toolNames := store.Tools
+	if len(toolNames) == 1 && toolNames[0] == "All" {
+		return true
+	}
+	for _, toolName := range toolNames {
+		t, err := object.GetToolByOwnerAndName(store.Owner, toolName)
+		if err != nil || t == nil {
+			continue
+		}
+		if t.Type == "browser_use" {
+			return true
+		}
+	}
+	return false
 }
 
 // CancelMessageAnswer
@@ -219,6 +247,14 @@ func generateMessageAnswer(id string, responseWriter http.ResponseWriter, host s
 			"reference all relevant entries by their title and url in your answer in APA format, the whole line is a markdown link, so the user can verify.\n" +
 			"- Mutable facts need live checks: use tools rather than memory.\n" +
 			"- Longer work: brief progress update, then keep going."
+		if storeUsesBrowserUseTool(store) {
+			store.Prompt += "\n\n" + browserUseMemoryCloseoutBias
+			if webMemoryCatalog, webMemoryErr := tool.BrowserUseWebMemoryCatalog(store.Owner); webMemoryErr != nil {
+				fmt.Printf("browser web memory catalog: %v\n", webMemoryErr)
+			} else if webMemoryCatalog != "" {
+				store.Prompt += "\n\n" + webMemoryCatalog
+			}
+		}
 	}
 
 	if len(store.Skills) > 0 {

@@ -388,6 +388,16 @@ func (a *Adapter) createTable() {
 		panic(err)
 	}
 
+	err = a.engine.Sync2(new(BrowserUseWebSkill))
+	if err != nil {
+		panic(err)
+	}
+
+	err = a.engine.Sync2(new(BrowserUseWebAction))
+	if err != nil {
+		panic(err)
+	}
+
 	err = a.engine.Sync2(new(Tool))
 	if err != nil {
 		panic(err)

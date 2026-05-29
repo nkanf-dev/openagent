@@ -184,6 +184,7 @@ func DeleteTool(t *Tool) (bool, error) {
 
 func getToolConfig(t *Tool) tool.Config {
 	return tool.Config{
+		Owner:        t.Owner,
 		Type:         t.Type,
 		SubType:      t.SubType,
 		ProviderUrl:  t.ProviderUrl,

@@ -50,6 +50,8 @@ const (
 // It opens a visible, persistent Chromium browser for human-observable web tasks.
 type BrowserUseTool struct {
 	sessionKey  string
+	traceKey    string
+	owner       string
 	userDataDir string
 	enableProxy bool
 	mode        string
@@ -64,6 +66,8 @@ func NewBrowserUseTool(config Config) (*BrowserUseTool, error) {
 	sessionKey := strings.Join([]string{userDataDir, strconv.FormatBool(config.EnableProxy), mode}, "|")
 	return &BrowserUseTool{
 		sessionKey:  sessionKey,
+		traceKey:    strings.Join([]string{config.Owner, sessionKey}, "|"),
+		owner:       config.Owner,
 		userDataDir: userDataDir,
 		enableProxy: config.EnableProxy,
 		mode:        mode,
@@ -72,11 +76,19 @@ func NewBrowserUseTool(config Config) (*BrowserUseTool, error) {
 
 func (p *BrowserUseTool) BuiltinTools() []BuiltinTool {
 	if p.isChromeExtMode() {
-		return chromeConnectBuiltinTools()
+		return chromeConnectBuiltinTools(p)
 	}
 	return []BuiltinTool{
 		&browserUseOpenBuiltin{provider: p},
 		&browserUseSnapshotBuiltin{provider: p},
+		&browserUseSaveWebSkillBuiltin{provider: p},
+		&browserUseListWebSkillsBuiltin{provider: p},
+		&browserUseDeleteWebSkillBuiltin{provider: p},
+		&browserUseListWebActionsBuiltin{provider: p},
+		&browserUseInspectWebActionTraceBuiltin{provider: p},
+		&browserUseSaveWebActionBuiltin{provider: p},
+		&browserUseRunWebActionBuiltin{provider: p},
+		&browserUseDeleteWebActionBuiltin{provider: p},
 		&browserUseClickBuiltin{provider: p},
 		&browserUseTypeBuiltin{provider: p},
 		&browserUsePressBuiltin{provider: p},
@@ -1151,7 +1163,8 @@ func browserUseSnapshot(provider *BrowserUseTool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return browserUseFormatSnapshot(rawURL, title, visibleText, elements), nil
+	snapshot := browserUseFormatSnapshot(rawURL, title, visibleText, elements)
+	return browserUseAugmentSnapshotWithWebSkills(browserUseWebSkillOwner(provider), rawURL, snapshot)
 }
 
 // ---------------------------------------------------------------------------
@@ -1163,7 +1176,7 @@ type browserUseOpenBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseOpenBuiltin) GetName() string { return "browser_use_open" }
 
 func (b *browserUseOpenBuiltin) GetDescription() string {
-	return "Open or reuse the managed visible browser and navigate the Browser Use controlled tab to a URL. In extension mode, OpenAgent UI tabs are protected and Browser Use uses a separate controlled tab. Use this for real browser tasks only; do not claim a page was opened unless this tool succeeds. The browser keeps tabs, cookies, and media state across related user requests. This tool returns a fresh snapshot plus current browser state; use the returned element indexes only until the next page-changing action."
+	return browserUseWithWebSkillReflection("Open or reuse the managed visible browser and navigate the Browser Use controlled tab to a URL. In extension mode, OpenAgent UI tabs are protected and Browser Use uses a separate controlled tab. Use this for real browser tasks only; do not claim a page was opened unless this tool succeeds. The browser keeps tabs, cookies, and media state across related user requests. This tool returns a fresh snapshot plus current browser state; use the returned element indexes only until the next page-changing action.")
 }
 
 func (b *browserUseOpenBuiltin) GetInputSchema() interface{} {
@@ -1187,9 +1200,33 @@ func (b *browserUseOpenBuiltin) Execute(ctx context.Context, arguments map[strin
 	}
 	rawURL = strings.TrimSpace(rawURL)
 
+	before := browserUseCurrentPageInfoSafe(b.provider)
 	if err := b.provider.run(chromedp.Navigate(rawURL), chromedp.WaitReady("body", chromedp.ByQuery)); err != nil {
+		browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+			Summary:     fmt.Sprintf("open %s", rawURL),
+			Kind:        "open",
+			Target:      rawURL,
+			URL:         rawURL,
+			URLBefore:   before.URL,
+			TitleBefore: before.Title,
+			Status:      "failed",
+			Error:       err.Error(),
+		})
 		return browserUseErrorWithState(b.provider, fmt.Sprintf("browser use open failed for %s: %s", rawURL, err.Error())), nil
 	}
+	after := browserUseCurrentPageInfoSafe(b.provider)
+	browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+		Summary:     fmt.Sprintf("open %s", rawURL),
+		Kind:        "open",
+		Target:      rawURL,
+		URL:         rawURL,
+		URLBefore:   before.URL,
+		URLAfter:    after.URL,
+		TitleBefore: before.Title,
+		TitleAfter:  after.Title,
+		Outcome:     browserUseTraceOutcome("open", before, after),
+		Status:      "success",
+	})
 	snapshot, err := browserUseSnapshot(b.provider)
 	if err != nil {
 		return browserUseErrorWithState(b.provider, fmt.Sprintf("browser use snapshot failed after opening %s: %s", rawURL, err.Error())), nil
@@ -1206,7 +1243,7 @@ type browserUseSnapshotBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseSnapshotBuiltin) GetName() string { return "browser_use_snapshot" }
 
 func (b *browserUseSnapshotBuiltin) GetDescription() string {
-	return "Read the Browser Use controlled tab in the existing managed browser and return visible text, indexed interactive elements, URL, title, controlled tab index, tab count, and media state. Treat this as the source of truth before acting. Use it at the start of a follow-up request and after every navigation, click, type, or key press before reusing element indexes. Do not invent page contents or completed browser actions that are not visible in this tool result."
+	return browserUseWithWebSkillReflection("Read the Browser Use controlled tab in the existing managed browser and return visible text, indexed interactive elements, URL, title, controlled tab index, tab count, and media state. Treat this as the source of truth before acting. Use it at the start of a follow-up request and after every navigation, click, type, or key press before reusing element indexes. Matching Browser Web Skills are injected as lightweight natural-language site memory.")
 }
 
 func (b *browserUseSnapshotBuiltin) GetInputSchema() interface{} {
@@ -1234,7 +1271,7 @@ type browserUseClickBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseClickBuiltin) GetName() string { return "browser_use_click" }
 
 func (b *browserUseClickBuiltin) GetDescription() string {
-	return "Click an indexed element from the latest browser_use_snapshot, or a CSS selector when no index is available. The click may navigate, open a new tab, or change the DOM, so old indexes must be considered stale afterward. This tool reports the current browser state after the click; call browser_use_snapshot before the next indexed action."
+	return browserUseWithWebSkillReflection("Click an indexed element from the latest browser_use_snapshot, or a CSS selector when no index is available. The click may navigate, open a new tab, or change the DOM, so old indexes must be considered stale afterward. This tool reports the current browser state after the click; call browser_use_snapshot before the next indexed action.")
 }
 
 func (b *browserUseClickBuiltin) GetInputSchema() interface{} {
@@ -1259,6 +1296,8 @@ func (b *browserUseClickBuiltin) Execute(ctx context.Context, arguments map[stri
 	if err != nil {
 		return browserToolError(err.Error()), nil
 	}
+	targetSummary, traceSelector := browserUseTraceTarget(arguments)
+	beforePage := browserUseCurrentPageInfoSafe(b.provider)
 	switchedTab := false
 	err = b.provider.runSession(func(session *browserUseSession) error {
 		var previousURL string
@@ -1289,8 +1328,31 @@ func (b *browserUseClickBuiltin) Execute(ctx context.Context, arguments map[stri
 		return switchErr
 	})
 	if err != nil {
+		browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+			Summary:     fmt.Sprintf("click %s", targetSummary),
+			Kind:        "click",
+			Selector:    traceSelector,
+			Target:      targetSummary,
+			URLBefore:   beforePage.URL,
+			TitleBefore: beforePage.Title,
+			Status:      "failed",
+			Error:       err.Error(),
+		})
 		return browserUseErrorWithState(b.provider, fmt.Sprintf("browser use click failed for %s: %s", selector, err.Error())), nil
 	}
+	afterPage := browserUseCurrentPageInfoSafe(b.provider)
+	browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+		Summary:     fmt.Sprintf("click %s", targetSummary),
+		Kind:        "click",
+		Selector:    traceSelector,
+		Target:      targetSummary,
+		URLBefore:   beforePage.URL,
+		URLAfter:    afterPage.URL,
+		TitleBefore: beforePage.Title,
+		TitleAfter:  afterPage.Title,
+		Outcome:     browserUseTraceOutcome("click", beforePage, afterPage),
+		Status:      "success",
+	})
 	if switchedTab {
 		return browserUseTextWithState(b.provider, "Clicked and switched to the new tab. Call browser_use_snapshot before the next indexed action."), nil
 	}
@@ -1306,7 +1368,7 @@ type browserUseTypeBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseTypeBuiltin) GetName() string { return "browser_use_type" }
 
 func (b *browserUseTypeBuiltin) GetDescription() string {
-	return "Type text into an indexed input-like element, select dropdown, or web code editor from the latest browser_use_snapshot, or a CSS selector when no index is available. For select elements, pass one of the option labels or values shown in the snapshot as text. Set clear=true to replace the focused field or editor content. This tool uses real focus, select-all, delete, and text insertion so it should be preferred over repeated key presses for multi-line text. Typing can open suggestions or change the DOM, so verify with browser_use_snapshot before relying on indexes or claiming the input was accepted."
+	return browserUseWithWebSkillReflection("Type text into an indexed input-like element, select dropdown, or web code editor from the latest browser_use_snapshot, or a CSS selector when no index is available. For select elements, pass one of the option labels or values shown in the snapshot as text. Set clear=true to replace the focused field or editor content. This tool uses real focus, select-all, delete, and text insertion so it should be preferred over repeated key presses for multi-line text. Typing can open suggestions or change the DOM, so verify with browser_use_snapshot before relying on indexes or claiming the input was accepted.")
 }
 
 func (b *browserUseTypeBuiltin) GetInputSchema() interface{} {
@@ -1349,6 +1411,8 @@ func (b *browserUseTypeBuiltin) Execute(ctx context.Context, arguments map[strin
 	if value, ok := arguments["clear"].(bool); ok {
 		clear = value
 	}
+	targetSummary, traceSelector := browserUseTraceTarget(arguments)
+	beforePage := browserUseCurrentPageInfoSafe(b.provider)
 
 	actions := []chromedp.Action{
 		chromedp.ScrollIntoView(selector, chromedp.ByQuery),
@@ -1393,8 +1457,35 @@ func (b *browserUseTypeBuiltin) Execute(ctx context.Context, arguments map[strin
 	}
 
 	if err = b.provider.run(actions...); err != nil {
+		browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+			Summary:     fmt.Sprintf("type into %s", targetSummary),
+			Kind:        "type",
+			Selector:    traceSelector,
+			Target:      targetSummary,
+			Text:        text,
+			Clear:       &clear,
+			URLBefore:   beforePage.URL,
+			TitleBefore: beforePage.Title,
+			Status:      "failed",
+			Error:       err.Error(),
+		})
 		return browserUseErrorWithState(b.provider, fmt.Sprintf("browser use type failed for %s: %s", selector, err.Error())), nil
 	}
+	afterPage := browserUseCurrentPageInfoSafe(b.provider)
+	browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+		Summary:     fmt.Sprintf("type into %s", targetSummary),
+		Kind:        "type",
+		Selector:    traceSelector,
+		Target:      targetSummary,
+		Text:        text,
+		Clear:       &clear,
+		URLBefore:   beforePage.URL,
+		URLAfter:    afterPage.URL,
+		TitleBefore: beforePage.Title,
+		TitleAfter:  afterPage.Title,
+		Outcome:     browserUseTraceOutcome("type", beforePage, afterPage),
+		Status:      "success",
+	})
 	return browserUseTextWithState(b.provider, "Typed. Call browser_use_snapshot before the next indexed action or before claiming the page accepted the input."), nil
 }
 
@@ -1407,7 +1498,7 @@ type browserUsePressBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUsePressBuiltin) GetName() string { return "browser_use_press" }
 
 func (b *browserUsePressBuiltin) GetDescription() string {
-	return "Press a keyboard key in the visible browser, such as Enter, Tab, Escape, ArrowDown, or Space. A key press can submit a form, navigate, open a new tab, or change focus, so old indexes may be stale afterward. This tool reports the current browser state; call browser_use_snapshot before the next indexed action."
+	return browserUseWithWebSkillReflection("Press a keyboard key in the visible browser, such as Enter, Tab, Escape, ArrowDown, or Space. A key press can submit a form, navigate, open a new tab, or change focus, so old indexes may be stale afterward. This tool reports the current browser state; call browser_use_snapshot before the next indexed action.")
 }
 
 func (b *browserUsePressBuiltin) GetInputSchema() interface{} {
@@ -1431,6 +1522,7 @@ func (b *browserUsePressBuiltin) Execute(ctx context.Context, arguments map[stri
 	}
 	key = browserUseKey(strings.TrimSpace(key))
 
+	beforePage := browserUseCurrentPageInfoSafe(b.provider)
 	switchedTab := false
 	err := b.provider.runSession(func(session *browserUseSession) error {
 		var previousURL string
@@ -1457,8 +1549,31 @@ func (b *browserUsePressBuiltin) Execute(ctx context.Context, arguments map[stri
 		return switchErr
 	})
 	if err != nil {
+		browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+			Summary:     fmt.Sprintf("press %s", key),
+			Kind:        "press",
+			Target:      key,
+			Key:         key,
+			URLBefore:   beforePage.URL,
+			TitleBefore: beforePage.Title,
+			Status:      "failed",
+			Error:       err.Error(),
+		})
 		return browserUseErrorWithState(b.provider, fmt.Sprintf("browser use press failed for %s: %s", key, err.Error())), nil
 	}
+	afterPage := browserUseCurrentPageInfoSafe(b.provider)
+	browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+		Summary:     fmt.Sprintf("press %s", key),
+		Kind:        "press",
+		Target:      key,
+		Key:         key,
+		URLBefore:   beforePage.URL,
+		URLAfter:    afterPage.URL,
+		TitleBefore: beforePage.Title,
+		TitleAfter:  afterPage.Title,
+		Outcome:     browserUseTraceOutcome("press", beforePage, afterPage),
+		Status:      "success",
+	})
 	if switchedTab {
 		return browserUseTextWithState(b.provider, "Key pressed and switched to the new tab. Call browser_use_snapshot before the next indexed action."), nil
 	}
@@ -1509,7 +1624,7 @@ type browserUsePlayMediaBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUsePlayMediaBuiltin) GetName() string { return "browser_use_play_media" }
 
 func (b *browserUsePlayMediaBuiltin) GetDescription() string {
-	return "Play and unmute visible audio or video elements on the Browser Use controlled tab. Use this after opening a page with music or video if playback is paused, muted, or silent. The result includes media playback state; do not tell the user audio is playing unless the returned state says a media element is playing."
+	return browserUseWithWebSkillReflection("Play and unmute visible audio or video elements on the Browser Use controlled tab. Use this after opening a page with music or video if playback is paused, muted, or silent. The result includes media playback state; do not tell the user audio is playing unless the returned state says a media element is playing.")
 }
 
 func (b *browserUsePlayMediaBuiltin) GetInputSchema() interface{} {
@@ -1538,7 +1653,7 @@ type browserUseTabsBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseTabsBuiltin) GetName() string { return "browser_use_tabs" }
 
 func (b *browserUseTabsBuiltin) GetDescription() string {
-	return "List open browser tabs available to Browser Use, including active, controlled, and protected tab markers, titles, and URLs. Use this when a click opens a new tab, when the current page does not match what the user sees, or before switching tabs."
+	return browserUseWithWebSkillReflection("List open browser tabs available to Browser Use, including active, controlled, and protected tab markers, titles, and URLs. Use this when a click opens a new tab, when the current page does not match what the user sees, or before switching tabs.")
 }
 
 func (b *browserUseTabsBuiltin) GetInputSchema() interface{} {
@@ -1566,7 +1681,7 @@ type browserUseSwitchTabBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseSwitchTabBuiltin) GetName() string { return "browser_use_switch_tab" }
 
 func (b *browserUseSwitchTabBuiltin) GetDescription() string {
-	return "Switch Browser Use to a tab returned by browser_use_tabs. The switch sets the selected tab as the controlled tab used by Browser Use tools; protected OpenAgent UI tabs cannot be controlled. This tool returns a fresh snapshot and browser state for the selected tab."
+	return browserUseWithWebSkillReflection("Switch Browser Use to a tab returned by browser_use_tabs. The switch sets the selected tab as the controlled tab used by Browser Use tools; protected OpenAgent UI tabs cannot be controlled. This tool returns a fresh snapshot and browser state for the selected tab.")
 }
 
 func (b *browserUseSwitchTabBuiltin) GetInputSchema() interface{} {
@@ -1623,7 +1738,7 @@ type browserUseCloseTabBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseCloseTabBuiltin) GetName() string { return "browser_use_close_tab" }
 
 func (b *browserUseCloseTabBuiltin) GetDescription() string {
-	return "Close a browser tab returned by browser_use_tabs without closing the whole Browser Use session. Use browser_use_tabs first, then pass the tab index to close."
+	return browserUseWithWebSkillReflection("Close a browser tab returned by browser_use_tabs without closing the whole Browser Use session. Use browser_use_tabs first, then pass the tab index to close.")
 }
 
 func (b *browserUseCloseTabBuiltin) GetInputSchema() interface{} {
@@ -1699,7 +1814,7 @@ type browserUseCloseBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseCloseBuiltin) GetName() string { return "browser_use_close" }
 
 func (b *browserUseCloseBuiltin) GetDescription() string {
-	return "Close the visible browser session owned by Browser Use. Only use this when the user explicitly asks to close or stop the browser; do not use it between related follow-up tasks because the browser is intended to keep context. The profile directory remains on disk so cookies and local storage can be reused next time."
+	return browserUseWithWebSkillReflection("Close the visible browser session owned by Browser Use. Only use this when the user explicitly asks to close or stop the browser; do not use it between related follow-up tasks because the browser is intended to keep context. The profile directory remains on disk so cookies and local storage can be reused next time.")
 }
 
 func (b *browserUseCloseBuiltin) GetInputSchema() interface{} {
