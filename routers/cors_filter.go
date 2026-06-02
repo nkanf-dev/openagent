@@ -63,6 +63,10 @@ func CorsFilter(ctx *context.Context) {
 	if origin == "" || origin == "null" {
 		return
 	}
+	if isBrowserUseWebActionAPI(ctx.Request.URL.Path) && strings.HasPrefix(origin, "chrome-extension://") {
+		setCorsHeaders(ctx, origin)
+		return
+	}
 
 	// Check if origin is allowed based on Casdoor application's RedirectUris
 	setCorsHeaders(ctx, origin)

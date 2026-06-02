@@ -115,6 +115,10 @@ func initAPI() {
 	beego.Router("/api/add-tool", &controllers.ApiController{}, "POST:AddTool")
 	beego.Router("/api/delete-tool", &controllers.ApiController{}, "POST:DeleteTool")
 	beego.Router("/api/test-tool", &controllers.ApiController{}, "POST:TestTool")
+	beego.Router("/api/get-browser-use-web-actions", &controllers.ApiController{}, "GET:GetBrowserUseWebActions")
+	beego.Router("/api/get-browser-use-web-action", &controllers.ApiController{}, "GET:GetBrowserUseWebAction")
+	beego.Router("/api/save-browser-use-web-action", &controllers.ApiController{}, "POST:SaveBrowserUseWebAction")
+	beego.Router("/api/delete-browser-use-web-action", &controllers.ApiController{}, "POST:DeleteBrowserUseWebAction")
 
 	beego.Router("/api/get-global-files", &controllers.ApiController{}, "GET:GetGlobalFiles")
 	beego.Router("/api/get-files", &controllers.ApiController{}, "GET:GetFiles")

@@ -27,6 +27,7 @@ type Tool interface {
 
 // Config contains the fields needed to construct builtin tools.
 type Config struct {
+	Owner        string
 	Type         string
 	SubType      string
 	ProviderUrl  string
@@ -34,6 +35,7 @@ type Config struct {
 	ClientSecret string
 	EnableProxy  bool
 	Mode         string
+	UserDataDir  string
 }
 
 // New instantiates a tool implementation from its type.

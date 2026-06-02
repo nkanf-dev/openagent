@@ -17,6 +17,7 @@ package tool
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -31,6 +32,11 @@ import (
 	"github.com/ThinkInAIXYZ/go-mcp/protocol"
 	"github.com/chromedp/cdproto/target"
 	"github.com/gorilla/websocket"
+)
+
+var (
+	ErrChromeExtensionForbidden    = errors.New("browser extension request forbidden")
+	ErrChromeExtensionUnauthorized = errors.New("browser extension request unauthorized")
 )
 
 const (
@@ -120,16 +126,37 @@ func HandleChromeConnectWebSocket(w http.ResponseWriter, r *http.Request) {
 	globalBrowserUseChromeExtBridge.handleWebSocket(w, r)
 }
 
-func (b *browserUseChromeExtBridge) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+func ValidateChromeExtensionRequest(r *http.Request) error {
 	if !browserUseIsLocalRequest(r) {
-		http.Error(w, "browser extension bridge only accepts localhost connections", http.StatusForbidden)
-		return
+		return fmt.Errorf("%w: browser extension bridge only accepts localhost connections", ErrChromeExtensionForbidden)
+	}
+	if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" && !browserUseIsChromeExtensionOrigin(origin) {
+		return fmt.Errorf("%w: browser extension bridge only accepts chrome-extension origins", ErrChromeExtensionForbidden)
 	}
 	if expectedToken := strings.TrimSpace(os.Getenv("OPENAGENT_CHROME_EXTENSION_TOKEN")); expectedToken != "" {
 		if r.URL.Query().Get("token") != expectedToken {
-			http.Error(w, "invalid browser extension bridge token", http.StatusUnauthorized)
-			return
+			return fmt.Errorf("%w: invalid browser extension bridge token", ErrChromeExtensionUnauthorized)
 		}
+	}
+	return nil
+}
+
+func ChromeExtensionOwner() string {
+	owner := strings.TrimSpace(os.Getenv("OPENAGENT_CHROME_EXTENSION_OWNER"))
+	if owner == "" {
+		return "admin"
+	}
+	return owner
+}
+
+func (b *browserUseChromeExtBridge) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	if err := ValidateChromeExtensionRequest(r); err != nil {
+		status := http.StatusForbidden
+		if errors.Is(err, ErrChromeExtensionUnauthorized) {
+			status = http.StatusUnauthorized
+		}
+		http.Error(w, err.Error(), status)
+		return
 	}
 
 	upgrader := websocket.Upgrader{
@@ -375,7 +402,7 @@ func browserUseChromeExtOpen(ctx context.Context, rawURL string) error {
 	return browserUseChromeExtCall(ctx, "open", map[string]interface{}{"url": rawURL}, nil)
 }
 
-func browserUseChromeExtSnapshot(ctx context.Context) (string, error) {
+func browserUseChromeExtSnapshot(provider *BrowserUseTool, ctx context.Context) (string, error) {
 	var snapshot browserUseChromeExtSnapshotResult
 	if err := browserUseChromeExtCall(ctx, "snapshot", map[string]interface{}{}, &snapshot); err != nil {
 		return "", err
@@ -386,7 +413,8 @@ func browserUseChromeExtSnapshot(ctx context.Context) (string, error) {
 	if snapshot.Title == "" {
 		snapshot.Title = snapshot.Tab.Title
 	}
-	return browserUseFormatSnapshot(snapshot.URL, snapshot.Title, snapshot.VisibleText, snapshot.Elements), nil
+	formatted := browserUseFormatSnapshot(snapshot.URL, snapshot.Title, snapshot.VisibleText, snapshot.Elements)
+	return formatted, nil
 }
 
 func browserUseChromeExtCurrentState(ctx context.Context) (string, error) {
@@ -543,26 +571,31 @@ func chromeConnectErrorWithState(text string) *protocol.CallToolResult {
 	return browserToolError(fmt.Sprintf("%s\n\n%s", text, state))
 }
 
-func chromeConnectBuiltinTools() []BuiltinTool {
+func chromeConnectBuiltinTools(provider *BrowserUseTool) []BuiltinTool {
 	return []BuiltinTool{
-		&chromeConnectOpenBuiltin{},
-		&chromeConnectSnapshotBuiltin{},
-		&chromeConnectClickBuiltin{},
-		&chromeConnectTypeBuiltin{},
-		&chromeConnectPressBuiltin{},
+		&chromeConnectOpenBuiltin{provider: provider},
+		&chromeConnectSnapshotBuiltin{provider: provider},
+		&chromeConnectListWebActionsBuiltin{provider: provider},
+		&chromeConnectInspectWebActionTraceBuiltin{provider: provider},
+		&chromeConnectSaveWebActionBuiltin{provider: provider},
+		&chromeConnectRunWebActionBuiltin{provider: provider},
+		&chromeConnectDeleteWebActionBuiltin{provider: provider},
+		&chromeConnectClickBuiltin{provider: provider},
+		&chromeConnectTypeBuiltin{provider: provider},
+		&chromeConnectPressBuiltin{provider: provider},
 		&chromeConnectPlayMediaBuiltin{},
 		&chromeConnectTabsBuiltin{},
-		&chromeConnectSwitchTabBuiltin{},
+		&chromeConnectSwitchTabBuiltin{provider: provider},
 		&chromeConnectCloseTabBuiltin{},
 		&chromeConnectCloseBuiltin{},
 	}
 }
 
-type chromeConnectOpenBuiltin struct{}
+type chromeConnectOpenBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectOpenBuiltin) GetName() string { return "browser_use_open" }
 func (b *chromeConnectOpenBuiltin) GetDescription() string {
-	return "Navigate the Browser Use controlled tab in your existing Chrome browser to a URL via the OpenAgent Chrome extension. OpenAgent UI tabs are protected and Browser Use operates a separate controlled tab. Use this for real browser tasks only; do not claim a page was opened unless this tool succeeds. Returns a fresh snapshot plus current browser state."
+	return browserUseWithWebActionReflection("Navigate the Browser Use controlled tab in your existing Chrome browser to a URL via the OpenAgent Chrome extension. OpenAgent UI tabs are protected and Browser Use operates a separate controlled tab. Use this for real browser tasks only; do not claim a page was opened unless this tool succeeds. Returns a fresh snapshot plus current browser state.")
 }
 
 func (b *chromeConnectOpenBuiltin) GetInputSchema() interface{} {
@@ -585,21 +618,45 @@ func (b *chromeConnectOpenBuiltin) Execute(ctx context.Context, arguments map[st
 		return browserToolError("missing required parameter: url"), nil
 	}
 	rawURL = strings.TrimSpace(rawURL)
+	before := browserUseChromeExtCurrentPageInfoSafe(ctx)
 	if err := browserUseChromeExtOpen(ctx, rawURL); err != nil {
+		browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+			Summary:     fmt.Sprintf("open %s", rawURL),
+			Kind:        "open",
+			Target:      rawURL,
+			URL:         rawURL,
+			URLBefore:   before.URL,
+			TitleBefore: before.Title,
+			Status:      "failed",
+			Error:       err.Error(),
+		})
 		return chromeConnectErrorWithState(fmt.Sprintf("browser use open failed for %s: %s", rawURL, err.Error())), nil
 	}
-	snapshot, err := browserUseChromeExtSnapshot(ctx)
+	after := browserUseChromeExtCurrentPageInfoSafe(ctx)
+	browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+		Summary:     fmt.Sprintf("open %s", rawURL),
+		Kind:        "open",
+		Target:      rawURL,
+		URL:         rawURL,
+		URLBefore:   before.URL,
+		URLAfter:    after.URL,
+		TitleBefore: before.Title,
+		TitleAfter:  after.Title,
+		Outcome:     browserUseTraceOutcome("open", before, after),
+		Status:      "success",
+	})
+	snapshot, err := browserUseChromeExtSnapshot(b.provider, ctx)
 	if err != nil {
 		return chromeConnectErrorWithState(fmt.Sprintf("browser use snapshot failed after opening %s: %s", rawURL, err.Error())), nil
 	}
 	return chromeConnectTextWithState(snapshot), nil
 }
 
-type chromeConnectSnapshotBuiltin struct{}
+type chromeConnectSnapshotBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectSnapshotBuiltin) GetName() string { return "browser_use_snapshot" }
 func (b *chromeConnectSnapshotBuiltin) GetDescription() string {
-	return "Read the Browser Use controlled tab in your existing Chrome browser via the OpenAgent Chrome extension and return visible text, indexed interactive elements, URL, title, controlled tab index, tab count, and media state. Treat this as the source of truth before acting. Use it at the start of a follow-up request and after every navigation, click, type, or key press before reusing element indexes."
+	return browserUseWithWebActionReflection("Read the Browser Use controlled tab in your existing Chrome browser via the OpenAgent Chrome extension and return visible text, indexed interactive elements, URL, title, controlled tab index, tab count, and media state. Treat this as the source of truth before acting. Use it at the start of a follow-up request and after every navigation, click, type, or key press before reusing element indexes.")
 }
 
 func (b *chromeConnectSnapshotBuiltin) GetInputSchema() interface{} {
@@ -611,18 +668,18 @@ func (b *chromeConnectSnapshotBuiltin) GetInputSchema() interface{} {
 }
 
 func (b *chromeConnectSnapshotBuiltin) Execute(ctx context.Context, arguments map[string]interface{}) (*protocol.CallToolResult, error) {
-	snapshot, err := browserUseChromeExtSnapshot(ctx)
+	snapshot, err := browserUseChromeExtSnapshot(b.provider, ctx)
 	if err != nil {
 		return chromeConnectErrorWithState(fmt.Sprintf("browser use snapshot failed: %s", err.Error())), nil
 	}
 	return chromeConnectTextWithState(snapshot), nil
 }
 
-type chromeConnectClickBuiltin struct{}
+type chromeConnectClickBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectClickBuiltin) GetName() string { return "browser_use_click" }
 func (b *chromeConnectClickBuiltin) GetDescription() string {
-	return "Click an indexed element from the latest browser_use_snapshot, or a CSS selector when no index is available. The click may navigate, open a new tab, or change the DOM, so old indexes must be considered stale afterward. Call browser_use_snapshot before the next indexed action."
+	return browserUseWithWebActionReflection("Click an indexed element from the latest browser_use_snapshot, or a CSS selector when no index is available. The click may navigate, open a new tab, or change the DOM, so old indexes must be considered stale afterward. Call browser_use_snapshot before the next indexed action.")
 }
 
 func (b *chromeConnectClickBuiltin) GetInputSchema() interface{} {
@@ -643,17 +700,42 @@ func (b *chromeConnectClickBuiltin) GetInputSchema() interface{} {
 }
 
 func (b *chromeConnectClickBuiltin) Execute(ctx context.Context, arguments map[string]interface{}) (*protocol.CallToolResult, error) {
+	targetSummary, traceSelector := browserUseTraceTarget(arguments)
+	before := browserUseChromeExtCurrentPageInfoSafe(ctx)
 	if err := browserUseChromeExtClick(ctx, arguments); err != nil {
+		browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+			Summary:     fmt.Sprintf("click %s", targetSummary),
+			Kind:        "click",
+			Selector:    traceSelector,
+			Target:      targetSummary,
+			URLBefore:   before.URL,
+			TitleBefore: before.Title,
+			Status:      "failed",
+			Error:       err.Error(),
+		})
 		return chromeConnectErrorWithState(fmt.Sprintf("browser use click failed: %s", err.Error())), nil
 	}
+	after := browserUseChromeExtCurrentPageInfoSafe(ctx)
+	browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+		Summary:     fmt.Sprintf("click %s", targetSummary),
+		Kind:        "click",
+		Selector:    traceSelector,
+		Target:      targetSummary,
+		URLBefore:   before.URL,
+		URLAfter:    after.URL,
+		TitleBefore: before.Title,
+		TitleAfter:  after.Title,
+		Outcome:     browserUseTraceOutcome("click", before, after),
+		Status:      "success",
+	})
 	return chromeConnectTextWithState("Clicked. Call browser_use_snapshot before the next indexed action."), nil
 }
 
-type chromeConnectTypeBuiltin struct{}
+type chromeConnectTypeBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectTypeBuiltin) GetName() string { return "browser_use_type" }
 func (b *chromeConnectTypeBuiltin) GetDescription() string {
-	return "Type text into an indexed input-like element or a CSS selector from the latest browser_use_snapshot. Set clear=true to replace the current field content. Verify with browser_use_snapshot before relying on indexes or claiming the input was accepted."
+	return browserUseWithWebActionReflection("Type text into an indexed input-like element or a CSS selector from the latest browser_use_snapshot. Set clear=true to replace the current field content. Verify with browser_use_snapshot before relying on indexes or claiming the input was accepted.")
 }
 
 func (b *chromeConnectTypeBuiltin) GetInputSchema() interface{} {
@@ -684,17 +766,51 @@ func (b *chromeConnectTypeBuiltin) GetInputSchema() interface{} {
 }
 
 func (b *chromeConnectTypeBuiltin) Execute(ctx context.Context, arguments map[string]interface{}) (*protocol.CallToolResult, error) {
+	targetSummary, traceSelector := browserUseTraceTarget(arguments)
+	text, _ := arguments["text"].(string)
+	clear := true
+	if value, ok := arguments["clear"].(bool); ok {
+		clear = value
+	}
+	before := browserUseChromeExtCurrentPageInfoSafe(ctx)
 	if err := browserUseChromeExtType(ctx, arguments); err != nil {
+		browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+			Summary:     fmt.Sprintf("type into %s", targetSummary),
+			Kind:        "type",
+			Selector:    traceSelector,
+			Target:      targetSummary,
+			Text:        text,
+			Clear:       &clear,
+			URLBefore:   before.URL,
+			TitleBefore: before.Title,
+			Status:      "failed",
+			Error:       err.Error(),
+		})
 		return chromeConnectErrorWithState(fmt.Sprintf("browser use type failed: %s", err.Error())), nil
 	}
+	after := browserUseChromeExtCurrentPageInfoSafe(ctx)
+	browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+		Summary:     fmt.Sprintf("type into %s", targetSummary),
+		Kind:        "type",
+		Selector:    traceSelector,
+		Target:      targetSummary,
+		Text:        text,
+		Clear:       &clear,
+		URLBefore:   before.URL,
+		URLAfter:    after.URL,
+		TitleBefore: before.Title,
+		TitleAfter:  after.Title,
+		Outcome:     browserUseTraceOutcome("type", before, after),
+		Status:      "success",
+	})
 	return chromeConnectTextWithState("Typed. Call browser_use_snapshot before the next indexed action or before claiming the page accepted the input."), nil
 }
 
-type chromeConnectPressBuiltin struct{}
+type chromeConnectPressBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectPressBuiltin) GetName() string { return "browser_use_press" }
 func (b *chromeConnectPressBuiltin) GetDescription() string {
-	return "Press a keyboard key in the controlled Chrome tab, such as Enter, Tab, Escape, ArrowDown, or Space. A key press can submit a form, navigate, or change focus; call browser_use_snapshot before the next indexed action."
+	return browserUseWithWebActionReflection("Press a keyboard key in the controlled Chrome tab, such as Enter, Tab, Escape, ArrowDown, or Space. A key press can submit a form, navigate, or change focus; call browser_use_snapshot before the next indexed action.")
 }
 
 func (b *chromeConnectPressBuiltin) GetInputSchema() interface{} {
@@ -716,9 +832,34 @@ func (b *chromeConnectPressBuiltin) Execute(ctx context.Context, arguments map[s
 	if !ok || strings.TrimSpace(key) == "" {
 		return browserToolError("missing required parameter: key"), nil
 	}
-	if err := browserUseChromeExtPress(ctx, strings.TrimSpace(key)); err != nil {
+	key = strings.TrimSpace(key)
+	before := browserUseChromeExtCurrentPageInfoSafe(ctx)
+	if err := browserUseChromeExtPress(ctx, key); err != nil {
+		browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+			Summary:     fmt.Sprintf("press %s", key),
+			Kind:        "press",
+			Target:      key,
+			Key:         key,
+			URLBefore:   before.URL,
+			TitleBefore: before.Title,
+			Status:      "failed",
+			Error:       err.Error(),
+		})
 		return chromeConnectErrorWithState(fmt.Sprintf("browser use press failed for %s: %s", key, err.Error())), nil
 	}
+	after := browserUseChromeExtCurrentPageInfoSafe(ctx)
+	browserUseRecordProviderWebActionTrace(b.provider, browserUseWebActionTraceStep{
+		Summary:     fmt.Sprintf("press %s", key),
+		Kind:        "press",
+		Target:      key,
+		Key:         key,
+		URLBefore:   before.URL,
+		URLAfter:    after.URL,
+		TitleBefore: before.Title,
+		TitleAfter:  after.Title,
+		Outcome:     browserUseTraceOutcome("press", before, after),
+		Status:      "success",
+	})
 	return chromeConnectTextWithState("Key pressed. Call browser_use_snapshot before the next indexed action."), nil
 }
 
@@ -726,7 +867,7 @@ type chromeConnectPlayMediaBuiltin struct{}
 
 func (b *chromeConnectPlayMediaBuiltin) GetName() string { return "browser_use_play_media" }
 func (b *chromeConnectPlayMediaBuiltin) GetDescription() string {
-	return "Play and unmute visible audio or video elements on the Browser Use controlled tab via the OpenAgent Chrome extension. Use this after opening a page with media if playback is paused or muted."
+	return browserUseWithWebActionReflection("Play and unmute visible audio or video elements on the Browser Use controlled tab via the OpenAgent Chrome extension. Use this after opening a page with media if playback is paused or muted.")
 }
 
 func (b *chromeConnectPlayMediaBuiltin) GetInputSchema() interface{} {
@@ -749,7 +890,7 @@ type chromeConnectTabsBuiltin struct{}
 
 func (b *chromeConnectTabsBuiltin) GetName() string { return "browser_use_tabs" }
 func (b *chromeConnectTabsBuiltin) GetDescription() string {
-	return "List open Chrome tabs available via the OpenAgent Chrome extension, including active, controlled, and protected tab markers, titles, and URLs. Use this before switching tabs or when the current page does not match what the user sees."
+	return browserUseWithWebActionReflection("List open Chrome tabs available via the OpenAgent Chrome extension, including active, controlled, and protected tab markers, titles, and URLs. Use this before switching tabs or when the current page does not match what the user sees.")
 }
 
 func (b *chromeConnectTabsBuiltin) GetInputSchema() interface{} {
@@ -768,11 +909,11 @@ func (b *chromeConnectTabsBuiltin) Execute(ctx context.Context, arguments map[st
 	return chromeConnectTextWithState(browserUseFormatTabs(tabs)), nil
 }
 
-type chromeConnectSwitchTabBuiltin struct{}
+type chromeConnectSwitchTabBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectSwitchTabBuiltin) GetName() string { return "browser_use_switch_tab" }
 func (b *chromeConnectSwitchTabBuiltin) GetDescription() string {
-	return "Switch Browser Use to a tab returned by browser_use_tabs via the OpenAgent Chrome extension. Protected OpenAgent UI tabs cannot be controlled. Returns a fresh snapshot and browser state for the selected tab."
+	return browserUseWithWebActionReflection("Switch Browser Use to a tab returned by browser_use_tabs via the OpenAgent Chrome extension. Protected OpenAgent UI tabs cannot be controlled. Returns a fresh snapshot and browser state for the selected tab.")
 }
 
 func (b *chromeConnectSwitchTabBuiltin) GetInputSchema() interface{} {
@@ -801,7 +942,7 @@ func (b *chromeConnectSwitchTabBuiltin) Execute(ctx context.Context, arguments m
 	if err = browserUseChromeExtSwitchTab(ctx, index); err != nil {
 		return chromeConnectErrorWithState(fmt.Sprintf("browser use switch tab failed: %s", err.Error())), nil
 	}
-	snapshot, err := browserUseChromeExtSnapshot(ctx)
+	snapshot, err := browserUseChromeExtSnapshot(b.provider, ctx)
 	if err != nil {
 		return chromeConnectErrorWithState(fmt.Sprintf("browser use snapshot failed after switching tabs: %s", err.Error())), nil
 	}
@@ -812,7 +953,7 @@ type chromeConnectCloseTabBuiltin struct{}
 
 func (b *chromeConnectCloseTabBuiltin) GetName() string { return "browser_use_close_tab" }
 func (b *chromeConnectCloseTabBuiltin) GetDescription() string {
-	return "Close a Chrome tab returned by browser_use_tabs via the OpenAgent Chrome extension. Use browser_use_tabs first, then pass the tab index to close."
+	return browserUseWithWebActionReflection("Close a Chrome tab returned by browser_use_tabs via the OpenAgent Chrome extension. Use browser_use_tabs first, then pass the tab index to close.")
 }
 
 func (b *chromeConnectCloseTabBuiltin) GetInputSchema() interface{} {
@@ -848,7 +989,7 @@ type chromeConnectCloseBuiltin struct{}
 
 func (b *chromeConnectCloseBuiltin) GetName() string { return "browser_use_close" }
 func (b *chromeConnectCloseBuiltin) GetDescription() string {
-	return "Disconnect the OpenAgent Chrome extension bridge. Only use this when the user explicitly asks to stop browser use; do not use it between related follow-up tasks. Chrome tabs are left open."
+	return browserUseWithWebActionReflection("Disconnect the OpenAgent Chrome extension bridge. Only use this when the user explicitly asks to stop browser use; do not use it between related follow-up tasks. Chrome tabs are left open.")
 }
 
 func (b *chromeConnectCloseBuiltin) GetInputSchema() interface{} {

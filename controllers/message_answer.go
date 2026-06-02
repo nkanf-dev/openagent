@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -61,6 +62,15 @@ func (c *ApiController) GetMessageAnswer() {
 
 	job := messageAnswerJobs.getOrStart(id, c.Ctx.Request.Host, c.GetAcceptLanguage(), signedIn)
 	streamMessageAnswerJob(c.Ctx.ResponseWriter, c.Ctx.Request, job)
+}
+
+func hasTool(tools []string, name string) bool {
+	for _, toolName := range tools {
+		if strings.TrimSpace(toolName) == name {
+			return true
+		}
+	}
+	return false
 }
 
 // CancelMessageAnswer
@@ -208,9 +218,10 @@ func generateMessageAnswer(id string, responseWriter http.ResponseWriter, host s
 		store.Tools = []string{chat.Tool}
 	}
 
+	prompt := store.Prompt
 	if len(store.Tools) > 0 {
-		store.Prompt += "\nYou are a helpful AI assistant with access to tools. When the user asks you to perform a task, you MUST use the available tools to complete it directly. Do not refuse or explain why you cannot — just use the tools and fulfill the request."
-		store.Prompt += "\n## Execution Bias\n" +
+		prompt += "\nYou are a helpful AI assistant with access to tools. When the user asks you to perform a task, you MUST use the available tools to complete it directly. Do not refuse or explain why you cannot — just use the tools and fulfill the request."
+		prompt += "\n## Execution Bias\n" +
 			"- Actionable request: act in this turn.\n" +
 			"- Continue until done or genuinely blocked; do not finish with a plan/promise when tools can move it forward.\n" +
 			"- Task completion: keep calling tools until the task is accomplished; do not describe next steps — execute them.\n" +
@@ -220,6 +231,14 @@ func generateMessageAnswer(id string, responseWriter http.ResponseWriter, host s
 			"- Mutable facts need live checks: use tools rather than memory.\n" +
 			"- Longer work: brief progress update, then keep going."
 	}
+	if hasTool(store.Tools, "browser_use") {
+		webActionCatalog, catalogErr := object.GetBrowserUseWebActionCatalog(store.Owner)
+		if catalogErr != nil {
+			log.Printf("failed to load browser web action catalog: %v", catalogErr)
+		} else if webActionCatalog != "" {
+			prompt += "\n\n" + webActionCatalog
+		}
+	}
 
 	if len(store.Skills) > 0 {
 		skillsContent, skillErr := object.GetSkillsCatalog(store.Owner, store.Skills)
@@ -228,7 +247,7 @@ func generateMessageAnswer(id string, responseWriter http.ResponseWriter, host s
 			return
 		}
 		if skillsContent != "" {
-			store.Prompt += "\n\n" + skillsContent
+			prompt += "\n\n" + skillsContent
 		}
 	}
 
@@ -359,7 +378,6 @@ func generateMessageAnswer(id string, responseWriter http.ResponseWriter, host s
 	// fmt.Printf("Refined Question: [%s]\n", realQuestion)
 	fmt.Printf("Answer: [")
 
-	prompt := store.Prompt
 	reviewQuestion := question
 	if !isReasonModel(modelProvider.SubType) {
 		if modelProvider.Type == "Alibaba Cloud" && webSearchEnabled {

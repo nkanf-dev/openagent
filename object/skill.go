@@ -525,6 +525,13 @@ func (skillLoader) Load(owner string, allowedSkillNames []string, skillName stri
 			}
 		}
 		if !allowed {
+			hint, hintErr := browserUseWebActionLoadSkillHint(owner, skillName)
+			if hintErr != nil {
+				return "", hintErr
+			}
+			if hint != "" {
+				return "", fmt.Errorf("%s", hint)
+			}
 			return "", fmt.Errorf("skill is not enabled for this store: %s", skillName)
 		}
 	}

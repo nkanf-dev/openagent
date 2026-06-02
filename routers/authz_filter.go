@@ -21,6 +21,7 @@ import (
 	"github.com/the-open-agent/openagent/authz"
 	"github.com/the-open-agent/openagent/conf"
 	"github.com/the-open-agent/openagent/controllers"
+	"github.com/the-open-agent/openagent/tool"
 	"github.com/the-open-agent/openagent/util"
 )
 
@@ -64,6 +65,14 @@ func permissionFilter(ctx *context.Context) {
 	}
 
 	user := GetSessionUser(ctx)
+	if isBrowserUseWebActionAPI(urlPath) && (method == "GET" || method == "POST") {
+		if err := tool.ValidateChromeExtensionRequest(ctx.Request); err == nil {
+			return
+		} else if !util.IsAdmin(user) {
+			responseError(ctx, err.Error())
+			return
+		}
+	}
 
 	var role string
 	switch {
@@ -77,5 +86,17 @@ func permissionFilter(ctx *context.Context) {
 
 	if !authz.IsAllowed(role, method, urlPath) {
 		responseError(ctx, "auth:this operation requires admin privilege")
+	}
+}
+
+func isBrowserUseWebActionAPI(urlPath string) bool {
+	switch urlPath {
+	case "/api/get-browser-use-web-actions",
+		"/api/get-browser-use-web-action",
+		"/api/save-browser-use-web-action",
+		"/api/delete-browser-use-web-action":
+		return true
+	default:
+		return false
 	}
 }
