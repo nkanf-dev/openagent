@@ -181,6 +181,7 @@ class StoreListPage extends BaseListPage {
       isDefault: false,
       state: "Active",
       enableExperienceReview: false,
+      browserUseWebActionPrompt: false,
       enableExtraOptions: false,
     };
   }

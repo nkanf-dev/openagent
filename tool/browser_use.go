@@ -1177,7 +1177,7 @@ type browserUseOpenBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseOpenBuiltin) GetName() string { return "browser_use_open" }
 
 func (b *browserUseOpenBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Open or reuse the managed visible browser and navigate the Browser Use controlled tab to a URL. In extension mode, OpenAgent UI tabs are protected and Browser Use uses a separate controlled tab. Use this for real browser tasks only; do not claim a page was opened unless this tool succeeds. The browser keeps tabs, cookies, and media state across related user requests. This tool returns a fresh snapshot plus current browser state; use the returned element indexes only until the next page-changing action.")
+	return browserUseDescription("Open or reuse the managed visible browser and navigate the Browser Use controlled tab to a URL. In extension mode, OpenAgent UI tabs are protected and Browser Use uses a separate controlled tab. Use this for real browser tasks only; do not claim a page was opened unless this tool succeeds. The browser keeps tabs, cookies, and media state across related user requests. This tool returns a fresh snapshot plus current browser state; use the returned element indexes only until the next page-changing action.")
 }
 
 func (b *browserUseOpenBuiltin) GetInputSchema() interface{} {
@@ -1244,7 +1244,7 @@ type browserUseSnapshotBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseSnapshotBuiltin) GetName() string { return "browser_use_snapshot" }
 
 func (b *browserUseSnapshotBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Read the Browser Use controlled tab in the existing managed browser and return visible text, indexed interactive elements, URL, title, controlled tab index, tab count, and media state. Treat this as the source of truth before acting. Use it at the start of a follow-up request and after every navigation, click, type, or key press before reusing element indexes.")
+	return browserUseDescription("Read the Browser Use controlled tab in the existing managed browser and return visible text, indexed interactive elements, URL, title, controlled tab index, tab count, and media state. Treat this as the source of truth before acting. Use it at the start of a follow-up request and after every navigation, click, type, or key press before reusing element indexes.")
 }
 
 func (b *browserUseSnapshotBuiltin) GetInputSchema() interface{} {
@@ -1272,7 +1272,7 @@ type browserUseClickBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseClickBuiltin) GetName() string { return "browser_use_click" }
 
 func (b *browserUseClickBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Click an indexed element from the latest browser_use_snapshot, or a CSS selector when no index is available. The click may navigate, open a new tab, or change the DOM, so old indexes must be considered stale afterward. This tool reports the current browser state after the click; call browser_use_snapshot before the next indexed action.")
+	return browserUseDescription("Click an indexed element from the latest browser_use_snapshot, or a CSS selector when no index is available. The click may navigate, open a new tab, or change the DOM, so old indexes must be considered stale afterward. This tool reports the current browser state after the click; call browser_use_snapshot before the next indexed action.")
 }
 
 func (b *browserUseClickBuiltin) GetInputSchema() interface{} {
@@ -1369,7 +1369,7 @@ type browserUseTypeBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseTypeBuiltin) GetName() string { return "browser_use_type" }
 
 func (b *browserUseTypeBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Type text into an indexed input-like element, select dropdown, or web code editor from the latest browser_use_snapshot, or a CSS selector when no index is available. For select elements, pass one of the option labels or values shown in the snapshot as text. Set clear=true to replace the focused field or editor content. This tool uses real focus, select-all, delete, and text insertion so it should be preferred over repeated key presses for multi-line text. Typing can open suggestions or change the DOM, so verify with browser_use_snapshot before relying on indexes or claiming the input was accepted.")
+	return browserUseDescription("Type text into an indexed input-like element, select dropdown, or web code editor from the latest browser_use_snapshot, or a CSS selector when no index is available. For select elements, pass one of the option labels or values shown in the snapshot as text. Set clear=true to replace the focused field or editor content. This tool uses real focus, select-all, delete, and text insertion so it should be preferred over repeated key presses for multi-line text. Typing can open suggestions or change the DOM, so verify with browser_use_snapshot before relying on indexes or claiming the input was accepted.")
 }
 
 func (b *browserUseTypeBuiltin) GetInputSchema() interface{} {
@@ -1502,7 +1502,7 @@ type browserUsePressBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUsePressBuiltin) GetName() string { return "browser_use_press" }
 
 func (b *browserUsePressBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Press a keyboard key in the visible browser, such as Enter, Tab, Escape, ArrowDown, or Space. A key press can submit a form, navigate, open a new tab, or change focus, so old indexes may be stale afterward. This tool reports the current browser state; call browser_use_snapshot before the next indexed action.")
+	return browserUseDescription("Press a keyboard key in the visible browser, such as Enter, Tab, Escape, ArrowDown, or Space. A key press can submit a form, navigate, open a new tab, or change focus, so old indexes may be stale afterward. This tool reports the current browser state; call browser_use_snapshot before the next indexed action.")
 }
 
 func (b *browserUsePressBuiltin) GetInputSchema() interface{} {
@@ -1628,7 +1628,7 @@ type browserUsePlayMediaBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUsePlayMediaBuiltin) GetName() string { return "browser_use_play_media" }
 
 func (b *browserUsePlayMediaBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Play and unmute visible audio or video elements on the Browser Use controlled tab. Use this after opening a page with music or video if playback is paused, muted, or silent. The result includes media playback state; do not tell the user audio is playing unless the returned state says a media element is playing.")
+	return browserUseDescription("Play and unmute visible audio or video elements on the Browser Use controlled tab. Use this after opening a page with music or video if playback is paused, muted, or silent. The result includes media playback state; do not tell the user audio is playing unless the returned state says a media element is playing.")
 }
 
 func (b *browserUsePlayMediaBuiltin) GetInputSchema() interface{} {
@@ -1657,7 +1657,7 @@ type browserUseTabsBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseTabsBuiltin) GetName() string { return "browser_use_tabs" }
 
 func (b *browserUseTabsBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("List open browser tabs available to Browser Use, including active, controlled, and protected tab markers, titles, and URLs. Use this when a click opens a new tab, when the current page does not match what the user sees, or before switching tabs.")
+	return browserUseDescription("List open browser tabs available to Browser Use, including active, controlled, and protected tab markers, titles, and URLs. Use this when a click opens a new tab, when the current page does not match what the user sees, or before switching tabs.")
 }
 
 func (b *browserUseTabsBuiltin) GetInputSchema() interface{} {
@@ -1685,7 +1685,7 @@ type browserUseSwitchTabBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseSwitchTabBuiltin) GetName() string { return "browser_use_switch_tab" }
 
 func (b *browserUseSwitchTabBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Switch Browser Use to a tab returned by browser_use_tabs. The switch sets the selected tab as the controlled tab used by Browser Use tools; protected OpenAgent UI tabs cannot be controlled. This tool returns a fresh snapshot and browser state for the selected tab.")
+	return browserUseDescription("Switch Browser Use to a tab returned by browser_use_tabs. The switch sets the selected tab as the controlled tab used by Browser Use tools; protected OpenAgent UI tabs cannot be controlled. This tool returns a fresh snapshot and browser state for the selected tab.")
 }
 
 func (b *browserUseSwitchTabBuiltin) GetInputSchema() interface{} {
@@ -1742,7 +1742,7 @@ type browserUseCloseTabBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseCloseTabBuiltin) GetName() string { return "browser_use_close_tab" }
 
 func (b *browserUseCloseTabBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Close a browser tab returned by browser_use_tabs without closing the whole Browser Use session. Use browser_use_tabs first, then pass the tab index to close.")
+	return browserUseDescription("Close a browser tab returned by browser_use_tabs without closing the whole Browser Use session. Use browser_use_tabs first, then pass the tab index to close.")
 }
 
 func (b *browserUseCloseTabBuiltin) GetInputSchema() interface{} {
@@ -1818,7 +1818,7 @@ type browserUseCloseBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseCloseBuiltin) GetName() string { return "browser_use_close" }
 
 func (b *browserUseCloseBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Close the visible browser session owned by Browser Use. Only use this when the user explicitly asks to close or stop the browser; do not use it between related follow-up tasks because the browser is intended to keep context. The profile directory remains on disk so cookies and local storage can be reused next time.")
+	return browserUseDescription("Close the visible browser session owned by Browser Use. Only use this when the user explicitly asks to close or stop the browser; do not use it between related follow-up tasks because the browser is intended to keep context. The profile directory remains on disk so cookies and local storage can be reused next time.")
 }
 
 func (b *browserUseCloseBuiltin) GetInputSchema() interface{} {

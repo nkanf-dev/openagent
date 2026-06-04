@@ -755,6 +755,8 @@
     "Private": "私密",
     "Prompt": "提示词",
     "Prompt - Tooltip": "全局默认提示词",
+    "Browser web action prompt injection": "浏览器动作提示词注入",
+    "Browser web action prompt injection - Tooltip": "实验性功能：向此智能体提示词注入已保存的浏览器网页动作，以及轻量的复用/记录提示。",
     "Publish State": "公开状态",
     "Publish State - Tooltip": "控制此数据仓库是否在公开广场中显示",
     "Published": "已发布",

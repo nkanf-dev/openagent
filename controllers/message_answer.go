@@ -30,6 +30,7 @@ import (
 	"github.com/the-open-agent/openagent/mcp"
 	"github.com/the-open-agent/openagent/model"
 	"github.com/the-open-agent/openagent/object"
+	"github.com/the-open-agent/openagent/tool"
 	"github.com/the-open-agent/openagent/util"
 )
 
@@ -231,13 +232,14 @@ func generateMessageAnswer(id string, responseWriter http.ResponseWriter, host s
 			"- Mutable facts need live checks: use tools rather than memory.\n" +
 			"- Longer work: brief progress update, then keep going."
 	}
-	if hasTool(store.Tools, "browser_use") {
+	if hasTool(store.Tools, "browser_use") && store.BrowserUseWebActionPrompt {
 		webActionCatalog, catalogErr := object.GetBrowserUseWebActionCatalog(store.Owner)
 		if catalogErr != nil {
 			log.Printf("failed to load browser web action catalog: %v", catalogErr)
 		} else if webActionCatalog != "" {
 			prompt += "\n\n" + webActionCatalog
 		}
+		prompt += "\n\n" + tool.GetBrowserUseWebActionReflectionPrompt()
 	}
 
 	if len(store.Skills) > 0 {

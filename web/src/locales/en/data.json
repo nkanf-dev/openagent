@@ -755,6 +755,8 @@
     "Private": "Private",
     "Prompt": "Prompt",
     "Prompt - Tooltip": "Global prompt template for AI behavior",
+    "Browser web action prompt injection": "Browser web action prompt injection",
+    "Browser web action prompt injection - Tooltip": "Experimental: inject saved browser web actions and lightweight reuse/recording hints into this agent's prompt.",
     "Publish State": "Publish State",
     "Publish State - Tooltip": "Control whether this agent is visible in the public Hub",
     "Published": "Published",

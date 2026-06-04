@@ -595,7 +595,7 @@ type chromeConnectOpenBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectOpenBuiltin) GetName() string { return "browser_use_open" }
 func (b *chromeConnectOpenBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Navigate the Browser Use controlled tab in your existing Chrome browser to a URL via the OpenAgent Chrome extension. OpenAgent UI tabs are protected and Browser Use operates a separate controlled tab. Use this for real browser tasks only; do not claim a page was opened unless this tool succeeds. Returns a fresh snapshot plus current browser state.")
+	return browserUseDescription("Navigate the Browser Use controlled tab in your existing Chrome browser to a URL via the OpenAgent Chrome extension. OpenAgent UI tabs are protected and Browser Use operates a separate controlled tab. Use this for real browser tasks only; do not claim a page was opened unless this tool succeeds. Returns a fresh snapshot plus current browser state.")
 }
 
 func (b *chromeConnectOpenBuiltin) GetInputSchema() interface{} {
@@ -656,7 +656,7 @@ type chromeConnectSnapshotBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectSnapshotBuiltin) GetName() string { return "browser_use_snapshot" }
 func (b *chromeConnectSnapshotBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Read the Browser Use controlled tab in your existing Chrome browser via the OpenAgent Chrome extension and return visible text, indexed interactive elements, URL, title, controlled tab index, tab count, and media state. Treat this as the source of truth before acting. Use it at the start of a follow-up request and after every navigation, click, type, or key press before reusing element indexes.")
+	return browserUseDescription("Read the Browser Use controlled tab in your existing Chrome browser via the OpenAgent Chrome extension and return visible text, indexed interactive elements, URL, title, controlled tab index, tab count, and media state. Treat this as the source of truth before acting. Use it at the start of a follow-up request and after every navigation, click, type, or key press before reusing element indexes.")
 }
 
 func (b *chromeConnectSnapshotBuiltin) GetInputSchema() interface{} {
@@ -679,7 +679,7 @@ type chromeConnectClickBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectClickBuiltin) GetName() string { return "browser_use_click" }
 func (b *chromeConnectClickBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Click an indexed element from the latest browser_use_snapshot, or a CSS selector when no index is available. The click may navigate, open a new tab, or change the DOM, so old indexes must be considered stale afterward. Call browser_use_snapshot before the next indexed action.")
+	return browserUseDescription("Click an indexed element from the latest browser_use_snapshot, or a CSS selector when no index is available. The click may navigate, open a new tab, or change the DOM, so old indexes must be considered stale afterward. Call browser_use_snapshot before the next indexed action.")
 }
 
 func (b *chromeConnectClickBuiltin) GetInputSchema() interface{} {
@@ -735,7 +735,7 @@ type chromeConnectTypeBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectTypeBuiltin) GetName() string { return "browser_use_type" }
 func (b *chromeConnectTypeBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Type text into an indexed input-like element or a CSS selector from the latest browser_use_snapshot. Set clear=true to replace the current field content. Verify with browser_use_snapshot before relying on indexes or claiming the input was accepted.")
+	return browserUseDescription("Type text into an indexed input-like element or a CSS selector from the latest browser_use_snapshot. Set clear=true to replace the current field content. Verify with browser_use_snapshot before relying on indexes or claiming the input was accepted.")
 }
 
 func (b *chromeConnectTypeBuiltin) GetInputSchema() interface{} {
@@ -810,7 +810,7 @@ type chromeConnectPressBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectPressBuiltin) GetName() string { return "browser_use_press" }
 func (b *chromeConnectPressBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Press a keyboard key in the controlled Chrome tab, such as Enter, Tab, Escape, ArrowDown, or Space. A key press can submit a form, navigate, or change focus; call browser_use_snapshot before the next indexed action.")
+	return browserUseDescription("Press a keyboard key in the controlled Chrome tab, such as Enter, Tab, Escape, ArrowDown, or Space. A key press can submit a form, navigate, or change focus; call browser_use_snapshot before the next indexed action.")
 }
 
 func (b *chromeConnectPressBuiltin) GetInputSchema() interface{} {
@@ -867,7 +867,7 @@ type chromeConnectPlayMediaBuiltin struct{}
 
 func (b *chromeConnectPlayMediaBuiltin) GetName() string { return "browser_use_play_media" }
 func (b *chromeConnectPlayMediaBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Play and unmute visible audio or video elements on the Browser Use controlled tab via the OpenAgent Chrome extension. Use this after opening a page with media if playback is paused or muted.")
+	return browserUseDescription("Play and unmute visible audio or video elements on the Browser Use controlled tab via the OpenAgent Chrome extension. Use this after opening a page with media if playback is paused or muted.")
 }
 
 func (b *chromeConnectPlayMediaBuiltin) GetInputSchema() interface{} {
@@ -890,7 +890,7 @@ type chromeConnectTabsBuiltin struct{}
 
 func (b *chromeConnectTabsBuiltin) GetName() string { return "browser_use_tabs" }
 func (b *chromeConnectTabsBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("List open Chrome tabs available via the OpenAgent Chrome extension, including active, controlled, and protected tab markers, titles, and URLs. Use this before switching tabs or when the current page does not match what the user sees.")
+	return browserUseDescription("List open Chrome tabs available via the OpenAgent Chrome extension, including active, controlled, and protected tab markers, titles, and URLs. Use this before switching tabs or when the current page does not match what the user sees.")
 }
 
 func (b *chromeConnectTabsBuiltin) GetInputSchema() interface{} {
@@ -913,7 +913,7 @@ type chromeConnectSwitchTabBuiltin struct{ provider *BrowserUseTool }
 
 func (b *chromeConnectSwitchTabBuiltin) GetName() string { return "browser_use_switch_tab" }
 func (b *chromeConnectSwitchTabBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Switch Browser Use to a tab returned by browser_use_tabs via the OpenAgent Chrome extension. Protected OpenAgent UI tabs cannot be controlled. Returns a fresh snapshot and browser state for the selected tab.")
+	return browserUseDescription("Switch Browser Use to a tab returned by browser_use_tabs via the OpenAgent Chrome extension. Protected OpenAgent UI tabs cannot be controlled. Returns a fresh snapshot and browser state for the selected tab.")
 }
 
 func (b *chromeConnectSwitchTabBuiltin) GetInputSchema() interface{} {
@@ -953,7 +953,7 @@ type chromeConnectCloseTabBuiltin struct{}
 
 func (b *chromeConnectCloseTabBuiltin) GetName() string { return "browser_use_close_tab" }
 func (b *chromeConnectCloseTabBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Close a Chrome tab returned by browser_use_tabs via the OpenAgent Chrome extension. Use browser_use_tabs first, then pass the tab index to close.")
+	return browserUseDescription("Close a Chrome tab returned by browser_use_tabs via the OpenAgent Chrome extension. Use browser_use_tabs first, then pass the tab index to close.")
 }
 
 func (b *chromeConnectCloseTabBuiltin) GetInputSchema() interface{} {
@@ -989,7 +989,7 @@ type chromeConnectCloseBuiltin struct{}
 
 func (b *chromeConnectCloseBuiltin) GetName() string { return "browser_use_close" }
 func (b *chromeConnectCloseBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Disconnect the OpenAgent Chrome extension bridge. Only use this when the user explicitly asks to stop browser use; do not use it between related follow-up tasks. Chrome tabs are left open.")
+	return browserUseDescription("Disconnect the OpenAgent Chrome extension bridge. Only use this when the user explicitly asks to stop browser use; do not use it between related follow-up tasks. Chrome tabs are left open.")
 }
 
 func (b *chromeConnectCloseBuiltin) GetInputSchema() interface{} {

@@ -655,6 +655,14 @@ class StoreEditPage extends React.Component {
                   </Select>,
                   12
                 )}
+                {this.renderStoreSwitch(
+                  Setting.getLabel(i18next.t("store:Browser web action prompt injection"), i18next.t("store:Browser web action prompt injection - Tooltip")),
+                  store.browserUseWebActionPrompt,
+                  checked => {
+                    this.updateStoreField("browserUseWebActionPrompt", checked);
+                  },
+                  8
+                )}
               </>
             ) : null}
             {this.renderStoreField(

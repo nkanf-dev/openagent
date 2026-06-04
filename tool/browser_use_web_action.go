@@ -137,8 +137,12 @@ const browserUseWebActionReflectionPrompt = "After using this browser_use tool, 
 
 var browserUseWebActionPlaceholderPattern = regexp.MustCompile(`\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
 
-func browserUseWithWebActionReflection(description string) string {
-	return strings.TrimSpace(description) + " " + browserUseWebActionReflectionPrompt
+func browserUseDescription(description string) string {
+	return strings.TrimSpace(description)
+}
+
+func GetBrowserUseWebActionReflectionPrompt() string {
+	return browserUseWebActionReflectionPrompt
 }
 
 func browserUseDefaultOwner(owner string) string {
@@ -1322,7 +1326,7 @@ type browserUseListWebActionsBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseListWebActionsBuiltin) GetName() string { return "browser_use_list_web_actions" }
 
 func (b *browserUseListWebActionsBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("List executable Browser Web Actions, including required variables inferred from {{placeholders}} in the saved action script.")
+	return browserUseDescription("List executable Browser Web Actions, including required variables inferred from {{placeholders}} in the saved action script.")
 }
 
 func (b *browserUseListWebActionsBuiltin) GetInputSchema() interface{} {
@@ -1351,7 +1355,7 @@ func (b *browserUseInspectWebActionTraceBuiltin) GetName() string {
 }
 
 func (b *browserUseInspectWebActionTraceBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Inspect recent Browser Use trace steps so the model can review prior attempts before authoring an explicit parameterized Browser Web Action steps array.")
+	return browserUseDescription("Inspect recent Browser Use trace steps so the model can review prior attempts before authoring an explicit parameterized Browser Web Action steps array.")
 }
 
 func (b *browserUseInspectWebActionTraceBuiltin) GetInputSchema() interface{} {
@@ -1373,7 +1377,7 @@ type browserUseSaveWebActionBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseSaveWebActionBuiltin) GetName() string { return "browser_use_save_web_action" }
 
 func (b *browserUseSaveWebActionBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Save an executable Browser Web Action under an action group. Provide an explicit parameterized steps array using open, click, type, and press steps; do not reference trace step ids.")
+	return browserUseDescription("Save an executable Browser Web Action under an action group. Provide an explicit parameterized steps array using open, click, type, and press steps; do not reference trace step ids.")
 }
 
 func (b *browserUseSaveWebActionBuiltin) GetInputSchema() interface{} {
@@ -1393,7 +1397,7 @@ type browserUseRunWebActionBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseRunWebActionBuiltin) GetName() string { return "browser_use_run_web_action" }
 
 func (b *browserUseRunWebActionBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Run a saved executable Browser Web Action. Use variables to fill {{placeholder}} values captured in the action script.")
+	return browserUseDescription("Run a saved executable Browser Web Action. Use variables to fill {{placeholder}} values captured in the action script.")
 }
 
 func (b *browserUseRunWebActionBuiltin) GetInputSchema() interface{} {
@@ -1422,7 +1426,7 @@ type browserUseDeleteWebActionBuiltin struct{ provider *BrowserUseTool }
 func (b *browserUseDeleteWebActionBuiltin) GetName() string { return "browser_use_delete_web_action" }
 
 func (b *browserUseDeleteWebActionBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Delete a saved executable Browser Web Action. Pass action_group when multiple action groups have an action with the same name.")
+	return browserUseDescription("Delete a saved executable Browser Web Action. Pass action_group when multiple action groups have an action with the same name.")
 }
 
 func (b *browserUseDeleteWebActionBuiltin) GetInputSchema() interface{} {
@@ -1442,7 +1446,7 @@ type chromeConnectListWebActionsBuiltin struct{ provider *BrowserUseTool }
 func (b *chromeConnectListWebActionsBuiltin) GetName() string { return "browser_use_list_web_actions" }
 
 func (b *chromeConnectListWebActionsBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("List executable Browser Web Actions, including required variables inferred from {{placeholders}} in the saved action script.")
+	return browserUseDescription("List executable Browser Web Actions, including required variables inferred from {{placeholders}} in the saved action script.")
 }
 
 func (b *chromeConnectListWebActionsBuiltin) GetInputSchema() interface{} {
@@ -1471,7 +1475,7 @@ func (b *chromeConnectInspectWebActionTraceBuiltin) GetName() string {
 }
 
 func (b *chromeConnectInspectWebActionTraceBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Inspect recent Browser Use trace steps so the model can review prior attempts before authoring an explicit parameterized Browser Web Action steps array.")
+	return browserUseDescription("Inspect recent Browser Use trace steps so the model can review prior attempts before authoring an explicit parameterized Browser Web Action steps array.")
 }
 
 func (b *chromeConnectInspectWebActionTraceBuiltin) GetInputSchema() interface{} {
@@ -1493,7 +1497,7 @@ type chromeConnectSaveWebActionBuiltin struct{ provider *BrowserUseTool }
 func (b *chromeConnectSaveWebActionBuiltin) GetName() string { return "browser_use_save_web_action" }
 
 func (b *chromeConnectSaveWebActionBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Save an executable Browser Web Action under an action group. Provide an explicit parameterized steps array using open, click, type, and press steps; do not reference trace step ids.")
+	return browserUseDescription("Save an executable Browser Web Action under an action group. Provide an explicit parameterized steps array using open, click, type, and press steps; do not reference trace step ids.")
 }
 
 func (b *chromeConnectSaveWebActionBuiltin) GetInputSchema() interface{} {
@@ -1513,7 +1517,7 @@ type chromeConnectRunWebActionBuiltin struct{ provider *BrowserUseTool }
 func (b *chromeConnectRunWebActionBuiltin) GetName() string { return "browser_use_run_web_action" }
 
 func (b *chromeConnectRunWebActionBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Run a saved executable Browser Web Action via the OpenAgent Chrome extension.")
+	return browserUseDescription("Run a saved executable Browser Web Action via the OpenAgent Chrome extension.")
 }
 
 func (b *chromeConnectRunWebActionBuiltin) GetInputSchema() interface{} {
@@ -1544,7 +1548,7 @@ func (b *chromeConnectDeleteWebActionBuiltin) GetName() string {
 }
 
 func (b *chromeConnectDeleteWebActionBuiltin) GetDescription() string {
-	return browserUseWithWebActionReflection("Delete a saved executable Browser Web Action. Pass action_group when multiple action groups have an action with the same name.")
+	return browserUseDescription("Delete a saved executable Browser Web Action. Pass action_group when multiple action groups have an action with the same name.")
 }
 
 func (b *chromeConnectDeleteWebActionBuiltin) GetInputSchema() interface{} {
